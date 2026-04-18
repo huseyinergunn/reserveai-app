@@ -2,9 +2,9 @@ import {
   getAvailableDateOptions,
   parseDateTimeFromForm,
   isWeekend,
-} from '@shared/dateUtils';
-import { TIME_SLOTS, TIMEZONE } from '@shared/constants';
-import type { TimeSlot } from '@shared/constants';
+} from '../../../shared/dateUtils';
+import { TIME_SLOTS, TIMEZONE } from '../../../shared/constants';
+import type { TimeSlot } from '../../../shared/constants';
 import { DateTime } from 'luxon';
 
 export interface DateValidationResult {

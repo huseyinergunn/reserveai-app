@@ -1,7 +1,7 @@
 import Groq from 'groq-sdk';
 import { DateTime } from 'luxon';
 import type { AiService } from './AiService';
-import type { ClassificationResult, ExtractedAppointmentData } from '@shared/types';
+import type { ClassificationResult, ExtractedAppointmentData } from '../../../../shared/types';
 import { logger } from '../../utils/logger';
 
 export class GroqService implements AiService {

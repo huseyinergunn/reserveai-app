@@ -10,7 +10,7 @@ import {
   termsSchema,
   flattenZodErrors,
 } from '../validators/form.validator';
-import type { FormSubmission, ApprovalPayload } from '@shared/types';
+import type { FormSubmission, ApprovalPayload } from '../../../shared/types';
 import { logger } from '../utils/logger';
 import {
   AppointmentModel,

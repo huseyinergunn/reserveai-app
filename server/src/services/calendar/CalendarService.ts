@@ -1,7 +1,7 @@
 import { google, calendar_v3 } from 'googleapis';
 import { v4 as uuidv4 } from 'uuid';
-import type { Appointment } from '@shared/types';
-import { addMinutesToIso } from '@shared/dateUtils';
+import type { Appointment } from '../../../../shared/types';
+import { addMinutesToIso } from '../../../../shared/dateUtils';
 import { logger } from '../../utils/logger';
 
 interface CalendarConfig {

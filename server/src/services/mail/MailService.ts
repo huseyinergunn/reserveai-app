@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
-import type { FormSubmission, ApprovalPayload } from '@shared/types';
-import { formatDisplayDateTime } from '@shared/dateUtils';
+import type { FormSubmission, ApprovalPayload } from '../../../../shared/types';
+import { formatDisplayDateTime } from '../../../../shared/dateUtils';
 import { logger } from '../../utils/logger';
 
 interface MailConfig {

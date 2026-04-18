@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TIME_SLOTS } from '@shared/constants';
+import { TIME_SLOTS } from '../../../shared/constants';
 
 // ---------------------------------------------------------------------------
 // Step 1 — Initial enquiry

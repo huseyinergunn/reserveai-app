@@ -1,4 +1,4 @@
-import type { ClassificationResult, ExtractedAppointmentData } from '@shared/types';
+import type { ClassificationResult, ExtractedAppointmentData } from '../../../../shared/types';
 
 /**
  * Abstract AI service contract.
