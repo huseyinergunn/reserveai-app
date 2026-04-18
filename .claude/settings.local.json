@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 10 npx vite --port 5173)",
+      "Bash(npm run:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/form/submit -H 'Content-Type: application/json' -d '{\"name\":\"Test User\",\"email\":\"test@example.com\",\"enquiry\":\"I need help building an AI-powered automation workflow for my e-commerce business using n8n and LLMs.\"}')",
+      "Bash(echo \"---EXIT:$?---\")",
+      "Bash(pkill -f \"ts-node-dev\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/form/submit -H 'Content-Type: application/json' -d '{\"name\":\"Jane Doe\",\"email\":\"jane@example.com\",\"enquiry\":\"I want to buy a pizza for my birthday party.\"}')",
+      "Bash(pkill -f \"ts-node-dev\" pkill -f \"node.*smart-app\" sleep 2 lsof -ti:3000)",
+      "Bash(xargs kill:*)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /PID 19132 /F)",
+      "Bash(cmd.exe /c \"taskkill /PID 19132 /F\")",
+      "Bash(cmd.exe /c \"taskkill /PID 19132 /F 2>&1\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 19132 -Force\")",
+      "Bash(curl -s http://localhost:3000/api/form/date-options)",
+      "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 3000 | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }')",
+      "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 3000 | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Start-Sleep 2; Write-Output done')",
+      "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Start-Sleep 2')",
+      "Bash(python -c \"import json; f=open\\('c:/Users/husoe/Downloads/Smart App — Randevu Otomasyonu.json', encoding='utf-8'\\); data=json.load\\(f\\); node=[n for n in data['nodes'] if n['name']=='Veriyi Formatla'][0]; [print\\(a['name'],'→',a['value'][:80]\\) for a in node['parameters']['assignments']['assignments']]\")",
+      "Bash(python -c \"import json; f=open\\('c:/Users/husoe/Downloads/Smart App \\\\u2014 Randevu Otomasyonu.json', encoding='utf-8'\\); data=json.load\\(f\\); node=[n for n in data['nodes'] if n['name']=='Veriyi Formatla'][0]; [print\\(a['name'], a['value'][:90]\\) for a in node['parameters']['assignments']['assignments']]\")",
+      "Bash(node -e \"const lucide = require\\('./node_modules/lucide-react'\\); console.log\\('TriangleAlert:', !!lucide.TriangleAlert\\); console.log\\('Brain:', !!lucide.Brain\\); console.log\\('CalendarSearch:', !!lucide.CalendarSearch\\); console.log\\('Zap:', !!lucide.Zap\\);\")"
+    ]
+  }
+}

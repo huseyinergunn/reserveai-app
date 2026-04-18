@@ -1,0 +1,19 @@
+{
+  "name": "smart-appointment-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered appointment scheduler (n8n → Fullstack)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n SERVER,CLIENT -c cyan,magenta \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "build": "npm run build --workspace=server && npm run build --workspace=client",
+    "typecheck": "npm run typecheck --workspace=server && npx tsc --noEmit -p client/tsconfig.json",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

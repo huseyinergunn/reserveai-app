@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/husoe/OneDrive//**)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit -p client/tsconfig.json)",
+      "Bash(node_modules/.bin/vite build:*)",
+      "Bash(../node_modules/.bin/vite build:*)",
+      "Bash(rm -rf src/ tests/)",
+      "Bash(rmdir /s /q api)",
+      "Bash(rm -rf api/)",
+      "Bash(cmd /c \"rmdir /s /q api\")",
+      "Bash(rm -f api/.env api/.env.example api/package.json api/tsconfig.json api/data/appointments.json)",
+      "Bash(rm -rf api/src/)",
+      "Bash(rmdir api/data)",
+      "Bash(rmdir api:*)",
+      "Bash(curl -s -X POST http://localhost:5678/webhook-test/appointments -H 'Content-Type: application/json' -d '{\"name\":\"Test User\",\"email\":\"test@example.com\",\"message\":\"Test mesaj\"}' -w '\\\\nHTTP Status: %{http_code}')",
+      "Bash(node -e ':*)"
+    ]
+  }
+}
