@@ -1,0 +1,120 @@
+services:
+  # ── Backend — Web Service ──────────────────────────────────────────────────
+  - type: web
+    name: smart-app-server
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server/src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render bu değeri otomatik doldurur — değiştirme
+      - key: PORT
+        value: 10000
+
+      # Frontend URL — Static Site deploy edilince güncelle
+      - key: CLIENT_URL
+        value: https://smart-app-client.onrender.com
+
+      # APP_BASE_URL — bu servisin public URL'i
+      - key: APP_BASE_URL
+        value: https://smart-app-server.onrender.com
+
+      # ── Aşağıdakiler Render Dashboard > Environment'tan girilecek ──────────
+      - key: MONGODB_URI
+        sync: false
+
+      - key: AI_PROVIDER
+        sync: false
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GMAIL_CLIENT_ID
+        sync: false
+
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+
+      - key: GMAIL_USER
+        sync: false
+
+      - key: ADMIN_EMAIL
+        sync: false
+
+      - key: GOOGLE_CALENDAR_CLIENT_ID
+        sync: false
+
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
+        sync: false
+
+      - key: GOOGLE_CALENDAR_REFRESH_TOKEN
+        sync: false
+
+      - key: GOOGLE_CALENDAR_ID
+        sync: false
+
+      - key: ADMIN_SECRET_KEY
+        sync: false
+
+      - key: N8N_BASE
+        sync: false
+
+      - key: N8N_WEBHOOK_URL
+        sync: false
+
+      - key: N8N_APPROVAL_WEBHOOK_URL
+        sync: false
+
+      - key: N8N_CANCELLATION_WEBHOOK_URL
+        sync: false
+
+      # Opsiyonel — varsayılan değerleri yeterli ise boş bırakılabilir
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+
+      - key: APPOINTMENT_DURATION_MINUTES
+        value: "30"
+
+      - key: BOOKING_WINDOW_DAYS
+        value: "5"
+
+      - key: TIMEZONE
+        value: Europe/Istanbul
+
+  # ── Frontend — Static Site ─────────────────────────────────────────────────
+  - type: web
+    name: smart-app-client
+    runtime: static
+    region: frankfurt
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Backend'in Render URL'i — server deploy edilince güncelle
+      - key: VITE_API_URL
+        value: https://smart-app-server.onrender.com
+
+      # Gerekiyorsa — admin paneli için
+      - key: VITE_ADMIN_SECRET_KEY
+        sync: false

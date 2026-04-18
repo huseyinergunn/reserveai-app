@@ -34,8 +34,14 @@ function requireEnv(key: string): string {
 }
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
-const CLIENT_URL = process.env.CLIENT_URL ?? 'http://localhost:5173';
 const MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/smart-app';
+
+// CLIENT_URL virgülle ayrılmış birden fazla origin destekler
+// Örn: "https://smart-app-client.onrender.com,http://localhost:5173"
+const allowedOrigins = (process.env.CLIENT_URL ?? 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 // ---------------------------------------------------------------------------
 // Dependency wiring
@@ -50,7 +56,7 @@ const mailService = new MailService({
   user:         requireEnv('GMAIL_USER'),
   adminEmail:   requireEnv('ADMIN_EMAIL'),
   appBaseUrl:   process.env.APP_BASE_URL ?? `http://localhost:${PORT}`,
-  clientUrl:    CLIENT_URL,
+  clientUrl:    allowedOrigins[0],
 });
 
 const calendarService = new CalendarService({
@@ -104,13 +110,14 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
-app.use(cors({
-  origin:         CLIENT_URL,
+const corsOptions = {
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials:    true,
   methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
-}));
-app.options('*', cors());          // preflight — tüm route'lara OPTIONS izni
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // preflight — tüm route'lara OPTIONS izni
 app.use(express.json());           // JSON body parser — ROUTE'LARDAN ÖNCE
 app.use(express.urlencoded({ extended: true }));
 app.use(globalLimiter);
@@ -138,7 +145,7 @@ mongoose
     app.listen(PORT, () => {
       logger.info(`🚀 Server ready on http://localhost:${PORT}`);
       logger.info(`   AI provider : ${process.env.AI_PROVIDER ?? 'openai'}`);
-      logger.info(`   CORS origin : ${CLIENT_URL}`);
+      logger.info(`   CORS origins: ${allowedOrigins.join(', ')}`);
     });
   })
   .catch((err) => {
