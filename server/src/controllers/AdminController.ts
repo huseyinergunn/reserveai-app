@@ -138,7 +138,6 @@ export class AdminController {
     const doc = await AppointmentModel.findById(id);
     if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
     if (doc.status === 'completed') { res.status(409).json({ error: 'Already completed.' }); return; }
-    // @ts-expect-error — 'completed' extends the base union
     doc.status = 'completed';
     await doc.save();
     logger.info(`[AdminController] Completed ${doc.bookingReference}`);
@@ -172,7 +171,6 @@ export class AdminController {
               .catch((e) => logger.error('[AdminController] bulk cancel event delete failed:', e));
           }
         } else {
-          // @ts-expect-error — 'completed' extends the base union
           doc.status = 'completed';
           await doc.save();
         }
