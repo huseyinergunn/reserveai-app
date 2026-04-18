@@ -3,7 +3,6 @@ services:
   - type: web
     name: smart-app-server
     runtime: node
-    region: frankfurt
     plan: free
     rootDir: server
     buildCommand: npm install && npm run build
