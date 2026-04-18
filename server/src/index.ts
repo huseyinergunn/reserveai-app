@@ -29,7 +29,10 @@ import { createAdminRouter } from './routes/admin.routes';
 
 function requireEnv(key: string): string {
   const v = process.env[key];
-  if (!v) throw new Error(`Missing required env var: ${key}`);
+  if (!v) {
+    console.error(`❌ HATA: Şu değişken eksik -> ${key}`); // Burayı ekle!
+    throw new Error(`Missing required env var: ${key}`);
+  }
   return v;
 }
 
