@@ -105,7 +105,6 @@ services:
   - type: web
     name: smart-app-client
     runtime: static
-    region: frankfurt
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
