@@ -20,8 +20,10 @@ import type {
 // Axios instance
 // ---------------------------------------------------------------------------
 
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: `${BASE_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
 });
