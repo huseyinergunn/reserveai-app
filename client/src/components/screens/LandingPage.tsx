@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Bot, CalendarCheck, Zap, Sparkles, CheckCircle2, Clock,
-  Mail, Search, Loader2, AlertTriangle, ChevronRight,
+  Mail, Search, Loader2, AlertTriangle,
   Shield, Star, ArrowRight, Home,
 } from 'lucide-react';
 import { Navbar }           from '../layout/Navbar';
