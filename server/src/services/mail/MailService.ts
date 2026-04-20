@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import type { FormSubmission, ApprovalPayload } from '../../../../shared/types';
 import { formatDisplayDateTime } from '../../../../shared/dateUtils';
@@ -183,31 +182,27 @@ export class MailService {
   // ---------------------------------------------------------------------------
 
   private async send(opts: { to: string; subject: string; html: string }): Promise<void> {
-    const transporter = await this.buildTransporter();
+    const auth = new google.auth.OAuth2(this.cfg.clientId, this.cfg.clientSecret);
+    auth.setCredentials({ refresh_token: this.cfg.refreshToken });
+    const gmail = google.gmail({ version: 'v1', auth });
+
+    const raw = Buffer.from(
+      [
+        `From: ${this.cfg.user}`,
+        `To: ${opts.to}`,
+        `Subject: ${opts.subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        opts.html,
+      ].join('\r\n'),
+    ).toString('base64url');
+
     try {
-      await transporter.sendMail({ from: this.cfg.user, ...opts });
+      await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
     } catch (err) {
-      logger.error('[MailService] Send failed:', err);
+      logger.error('[MailService] Gmail API send failed:', err);
       throw new Error(`Email delivery failed: ${(err as Error).message}`);
     }
-  }
-
-  private async buildTransporter(): Promise<nodemailer.Transporter> {
-    const oauth2 = new google.auth.OAuth2(this.cfg.clientId, this.cfg.clientSecret);
-    oauth2.setCredentials({ refresh_token: this.cfg.refreshToken });
-    const { token } = await oauth2.getAccessToken();
-    if (!token) throw new Error('Failed to obtain Gmail access token.');
-
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: this.cfg.user,
-        clientId: this.cfg.clientId,
-        clientSecret: this.cfg.clientSecret,
-        refreshToken: this.cfg.refreshToken,
-        accessToken: token,
-      },
-    } as nodemailer.TransportOptions);
   }
 }
