@@ -20,7 +20,7 @@ function ThemeToggle() {
 
 export function PortalPage() {
   return (
-    <div className="min-h-screen page-bg flex flex-col items-center justify-center px-4 relative">
+    <div className="min-h-screen page-bg flex flex-col items-center justify-center px-4 py-10 relative">
       <ResultBanner />
       <ThemeToggle />
 
@@ -61,13 +61,15 @@ export function PortalPage() {
         {/* Customer card */}
         <a
           href="/randevu"
-          className="group relative rounded-2xl p-7 flex flex-col gap-5 cursor-pointer
-                     transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl
+          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col gap-5 cursor-pointer
+                     transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
-            background:  'var(--card-bg)',
-            border:      '1px solid var(--card-border)',
-            boxShadow:   'var(--card-shadow)',
+            background:        'var(--card-bg)',
+            border:            '1px solid var(--card-border)',
+            boxShadow:         'var(--card-shadow)',
+            backdropFilter:    'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           }}
         >
           {/* Icon */}
@@ -104,13 +106,15 @@ export function PortalPage() {
         {/* Admin card */}
         <a
           href="/admin/login"
-          className="group relative rounded-2xl p-7 flex flex-col gap-5 cursor-pointer
-                     transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl
+          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col gap-5 cursor-pointer
+                     transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
-            background:  'var(--card-bg)',
-            border:      '1px solid var(--card-border)',
-            boxShadow:   'var(--card-shadow)',
+            background:        'var(--card-bg)',
+            border:            '1px solid var(--card-border)',
+            boxShadow:         'var(--card-shadow)',
+            backdropFilter:    'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           }}
         >
           {/* Icon */}

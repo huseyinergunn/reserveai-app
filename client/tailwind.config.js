@@ -40,6 +40,7 @@ export default {
         'slide-up':     'slideUp 0.45s ease-out both',
         'success-pop':  'successPop 0.5s cubic-bezier(.34,1.56,.64,1) both',
         'ai-glow':      'aiGlow 2s ease-in-out infinite',
+        'toast-in':     'toastIn 0.4s cubic-bezier(0.34,1.20,0.64,1) both',
       },
       keyframes: {
         fadeIn: {
@@ -77,6 +78,10 @@ export default {
         aiGlow: {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(59,130,246,0)' },
           '50%':      { boxShadow: '0 0 20px 4px rgba(59,130,246,0.25)' },
+        },
+        toastIn: {
+          '0%':   { opacity: '0', transform: 'translateX(110%) scale(0.92)' },
+          '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
         },
       },
     },
