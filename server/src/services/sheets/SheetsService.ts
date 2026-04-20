@@ -22,10 +22,11 @@ export class SheetsService {
     const row     = headers.map((h) => data[h] ?? '');
 
     await sheets.spreadsheets.values.append({
-      spreadsheetId:   this.cfg.spreadsheetId,
-      range:           `${this.cfg.sheetName}!A1`,
-      valueInputOption:'USER_ENTERED',
-      requestBody:     { values: [row] },
+      spreadsheetId:    this.cfg.spreadsheetId,
+      range:            `${this.cfg.sheetName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',  // always insert; never overwrite existing rows
+      requestBody:      { values: [row] },
     });
     logger.info(`[SheetsService] Row appended — id=${data['id'] ?? '?'}`);
   }

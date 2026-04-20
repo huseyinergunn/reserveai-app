@@ -113,15 +113,18 @@ Reply ONLY with valid JSON: {"category":"relevant"} or {"category":"other"}.`,
 Available dates (ISO — Turkish label):
 ${dateList}
 
-Available time slots: ${timeList}
+Available time slots (24-hour format): ${timeList}
 
 Extract the user's intended date and time.
 - date: one of the ISO dates above, or null
-- time: one of the time slots above, or null
+- time: one of the time slots above (must match exactly, e.g. "16:00"), or null
+  - Turkish expressions like "saat 16", "16'da", "öğleden sonra 4", "4 pm" → "16:00"
+  - "öğle" / "öğlen" → "12:00", "sabah 9" → "09:00"
+  - Always normalise to the nearest available slot above
 - confidence: "high"=clearly stated, "low"=inferred, "none"=not mentioned
 - suggestionMessage: brief Turkish note if confidence is "low", null otherwise
 
-Reply ONLY with valid JSON: {"date":"YYYY-MM-DD or null","time":"slot or null","confidence":"high|low|none","suggestionMessage":"string or null"}`,
+Reply ONLY with valid JSON: {"date":"YYYY-MM-DD or null","time":"HH:MM or null","confidence":"high|low|none","suggestionMessage":"string or null"}`,
           },
           { role: 'user', content: safe },
         ],

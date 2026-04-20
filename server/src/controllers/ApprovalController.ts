@@ -208,7 +208,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
-    res.redirect(`${this.deps.clientUrl}?result=approved`);
+    res.redirect(`${this.deps.clientUrl}?result=success`);
   };
 
   shortReject = async (req: Request, res: Response): Promise<void> => {

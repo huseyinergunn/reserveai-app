@@ -113,19 +113,22 @@ Reply ONLY with valid JSON: {"category":"relevant"} or {"category":"other"}.`,
 Available dates (ISO — Turkish label):
 ${dateList}
 
-Available time slots: ${timeList}
+Available time slots (24-hour format): ${timeList}
 
 From the user's message, extract their intended appointment date and time.
 
 Rules:
 - date: must be one of the ISO dates above, or null
-- time: must be one of the time slots above, or null
-- confidence: "high" = explicitly and clearly stated; "low" = inferred from context (e.g. "next Monday"); "none" = no date/time mentioned at all
-- suggestionMessage: a brief Turkish sentence if confidence is "low" (e.g. "Mesajınızdaki 'Pazartesi' ifadesinden en yakın Pazartesi tarihi seçildi."), null otherwise
+- time: must be one of the time slots above (exact match like "16:00"), or null
+  - "saat 16", "16'da", "öğleden sonra 4", "4 pm" → "16:00"
+  - "öğle" / "öğlen" → "12:00", "sabah 9" → "09:00"
+  - Normalise to the nearest available slot listed above
+- confidence: "high" = explicitly and clearly stated; "low" = inferred from context; "none" = no date/time mentioned
+- suggestionMessage: a brief Turkish sentence if confidence is "low", null otherwise
 
-Common Turkish mappings: Pazartesi=Monday, Salı=Tuesday, Çarşamba=Wednesday, Perşembe=Thursday, Cuma=Friday, sabah=morning, öğlen=noon, öğleden sonra=afternoon, akşam=evening, saat X=time X.
+Common Turkish mappings: Pazartesi=Monday, Salı=Tuesday, Çarşamba=Wednesday, Perşembe=Thursday, Cuma=Friday.
 
-Reply ONLY with valid JSON: {"date":"YYYY-MM-DD or null","time":"slot or null","confidence":"high|low|none","suggestionMessage":"string or null"}`,
+Reply ONLY with valid JSON: {"date":"YYYY-MM-DD or null","time":"HH:MM or null","confidence":"high|low|none","suggestionMessage":"string or null"}`,
           },
           { role: 'user', content: safe },
         ],

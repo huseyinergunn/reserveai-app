@@ -186,16 +186,23 @@ export class MailService {
     auth.setCredentials({ refresh_token: this.cfg.refreshToken });
     const gmail = google.gmail({ version: 'v1', auth });
 
+    // RFC 2047 — encode subject so Turkish/non-ASCII chars survive SMTP transit
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(opts.subject, 'utf8').toString('base64')}?=`;
+    // Encode body as base64 so multi-byte chars aren't mangled by line-ending transforms
+    const encodedBody = Buffer.from(opts.html, 'utf8').toString('base64');
+
     const raw = Buffer.from(
       [
         `From: ${this.cfg.user}`,
         `To: ${opts.to}`,
-        `Subject: ${opts.subject}`,
+        `Subject: ${encodedSubject}`,
         'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
         '',
-        opts.html,
+        encodedBody,
       ].join('\r\n'),
+      'utf8',
     ).toString('base64url');
 
     try {
