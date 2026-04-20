@@ -108,23 +108,31 @@ Reply ONLY with valid JSON: {"category":"relevant"} or {"category":"other"}.`,
         messages: [
           {
             role: 'system',
-            content: `Today is ${today}. The user is booking an appointment and may have mentioned a preferred date or time.
+            content: `Today is ${today} (timezone: Europe/Istanbul, UTC+3). The user is booking an appointment.
 
 Available dates (ISO — Turkish label):
 ${dateList}
 
-Available time slots (24-hour format): ${timeList}
+Available time slots (24-hour, UTC+3): ${timeList}
 
-Extract the user's intended date and time.
-- date: one of the ISO dates above, or null
-- time: one of the time slots above (must match exactly, e.g. "16:00"), or null
-  - Turkish expressions like "saat 16", "16'da", "öğleden sonra 4", "4 pm" → "16:00"
-  - "öğle" / "öğlen" → "12:00", "sabah 9" → "09:00"
-  - Always normalise to the nearest available slot above
-- confidence: "high"=clearly stated, "low"=inferred, "none"=not mentioned
-- suggestionMessage: brief Turkish note if confidence is "low", null otherwise
+Your job: extract the user's intended date and time and return them exactly as listed above.
 
-Reply ONLY with valid JSON: {"date":"YYYY-MM-DD or null","time":"HH:MM or null","confidence":"high|low|none","suggestionMessage":"string or null"}`,
+TIME NORMALISATION RULES (strict):
+- Any bare number 8–18 is a 24-hour hour → pad to HH:00. Examples:
+    "14 için"  → "14:00"
+    "saat 14"  → "14:00"
+    "14'te"    → "14:00"
+    "saat 9"   → "09:00"
+    "9'da"     → "09:00"
+    "öğle"/"öğlen"        → "12:00"
+    "öğleden sonra 2"/"4 pm" → "14:00"
+    "akşam 5"             → "17:00"
+    "sabah 10"            → "10:00"
+- After normalising, pick the EXACT matching slot from the list above (or the closest one if it's not exact).
+- If no time is mentioned at all → null.
+
+OUTPUT: valid JSON only — no markdown, no commentary.
+{"date":"YYYY-MM-DD or null","time":"HH:MM or null","confidence":"high|low|none","suggestionMessage":"Turkish note if low, else null"}`,
           },
           { role: 'user', content: safe },
         ],

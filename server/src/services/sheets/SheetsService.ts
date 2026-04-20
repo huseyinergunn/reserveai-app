@@ -2,11 +2,12 @@ import { google, sheets_v4 } from 'googleapis';
 import { logger } from '../../utils/logger';
 
 interface SheetsConfig {
-  clientId:     string;
-  clientSecret: string;
-  refreshToken: string;
+  clientId:      string;
+  clientSecret:  string;
+  refreshToken:  string;
   spreadsheetId: string;
-  sheetName:    string;  // e.g. "Sayfa1"
+  sheetName:     string;   // sheet tab name, e.g. "Sayfa1"
+  tableName?:    string;   // named table/range, e.g. "Randevular"
 }
 
 export class SheetsService {
@@ -21,14 +22,23 @@ export class SheetsService {
     const headers = await this.getHeaders(sheets);
     const row     = headers.map((h) => data[h] ?? '');
 
+    // If a named table is configured use it directly; otherwise fall back to
+    // the explicit column range so the API can locate the table boundary.
+    const lastCol    = headers.length > 0 ? this.colLetter(headers.length - 1) : 'Z';
+    const appendRange = this.cfg.tableName
+      ? this.cfg.tableName
+      : `${this.cfg.sheetName}!A1:${lastCol}1`;
+
     await sheets.spreadsheets.values.append({
       spreadsheetId:    this.cfg.spreadsheetId,
-      range:            `${this.cfg.sheetName}!A1`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',  // always insert; never overwrite existing rows
+      range:            appendRange,
+      // RAW keeps every value as a literal string — prevents Sheets from
+      // auto-converting "23 Nisan 2026 14:00" into a serial date number.
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
       requestBody:      { values: [row] },
     });
-    logger.info(`[SheetsService] Row appended — id=${data['id'] ?? '?'}`);
+    logger.info(`[SheetsService] Row appended to "${appendRange}" — id=${data['id'] ?? '?'}`);
   }
 
   /**
@@ -74,9 +84,12 @@ export class SheetsService {
   }
 
   private async getHeaders(sheets: sheets_v4.Sheets): Promise<string[]> {
-    const res = await sheets.spreadsheets.values.get({
+    // Named range returns the full table; take only the first row (headers).
+    // Fallback: read the first row of the configured sheet tab.
+    const range = this.cfg.tableName ?? `${this.cfg.sheetName}!1:1`;
+    const res   = await sheets.spreadsheets.values.get({
       spreadsheetId: this.cfg.spreadsheetId,
-      range:         `${this.cfg.sheetName}!1:1`,
+      range,
     });
     return ((res.data.values?.[0] ?? []) as string[]);
   }
