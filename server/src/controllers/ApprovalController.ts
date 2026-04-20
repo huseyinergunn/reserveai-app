@@ -266,7 +266,7 @@ export class ApprovalController {
   cancelAppointment = async (req: Request, res: Response): Promise<void> => {
     const token = req.params.token?.trim();
     if (!token) {
-      res.status(400).type('html').send('<p>Geçersiz iptal bağlantısı.</p>');
+      res.redirect(`${this.deps.clientUrl}?result=cancel-invalid`);
       return;
     }
 
@@ -439,73 +439,4 @@ export class ApprovalController {
     return doc;
   }
 
-  // ---------------------------------------------------------------------------
-  // HTML response builders
-  // ---------------------------------------------------------------------------
-
-  private buildApproveSuccessHtml(): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Randevu Onaylandı</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#16a34a;margin:0 0 12px;font-size:28px}p{color:#374151;font-size:16px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">✅</div>
-<h1>Randevu Onaylandı</h1>
-<p>İşlem alındı. Kullanıcıya onay e-postası gönderilecek ve takvim etkinliği oluşturulacak.</p>
-</div></body></html>`;
-  }
-
-  private buildRejectSuccessHtml(): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Randevu Reddedildi</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fef2f2}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#dc2626;margin:0 0 12px;font-size:28px}p{color:#374151;font-size:16px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">❌</div>
-<h1>Randevu Reddedildi</h1>
-<p>İşlem alındı. Kullanıcıya bilgilendirme e-postası gönderilecek.</p>
-</div></body></html>`;
-  }
-
-  private buildAlreadyProcessedHtml(status: string): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zaten İşlendi</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#64748b;margin:0 0 12px;font-size:24px}p{color:#374151;font-size:15px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">ℹ️</div>
-<h1>Zaten İşlendi</h1>
-<p>Bu randevu daha önce <strong>${status}</strong> durumuna getirilmiş.</p>
-</div></body></html>`;
-  }
-
-  private buildCancelSuccessHtml(): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Randevu İptal Edildi</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fefce8}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#ca8a04;margin:0 0 12px;font-size:28px}p{color:#374151;font-size:16px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">🚫</div>
-<h1>Randevu İptal Edildi</h1>
-<p>Randevunuz başarıyla iptal edildi. Yeni bir randevu almak isterseniz formu tekrar doldurabilirsiniz.</p>
-</div></body></html>`;
-  }
-
-  private buildAlreadyCancelledHtml(): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zaten İptal Edildi</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#64748b;margin:0 0 12px;font-size:24px}p{color:#374151;font-size:15px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">ℹ️</div>
-<h1>Zaten İptal Edildi</h1>
-<p>Bu randevu daha önce iptal edilmiş.</p>
-</div></body></html>`;
-  }
-
-  private buildCancelInvalidHtml(): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Geçersiz Bağlantı</title>
-<style>body{font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc}
-.card{background:white;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:480px}
-h1{color:#dc2626;margin:0 0 12px;font-size:24px}p{color:#374151;font-size:15px;line-height:1.6}</style>
-</head><body><div class="card"><div style="font-size:64px;margin-bottom:16px">⚠️</div>
-<h1>Geçersiz Bağlantı</h1>
-<p>İptal bağlantısı geçersiz veya süresi dolmuş.</p>
-</div></body></html>`;
-  }
 }
