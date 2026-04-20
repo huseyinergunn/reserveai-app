@@ -5,18 +5,10 @@
  */
 export const TIMEZONE = 'Europe/Istanbul';
 
-/** Time slots mirroring the n8n form dropdown */
+/** Time slots — 24-hour format, Europe/Istanbul business hours */
 export const TIME_SLOTS = [
-  '9:00 am',
-  '10:00 am',
-  '11:00 am',
-  '12:00 pm',
-  '1:00 pm',
-  '2:00 pm',
-  '3:00 pm',
-  '4:00 pm',
-  '5:00 pm',
-  '6:00 pm',
+  '09:00', '10:00', '11:00', '12:00',
+  '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
 ] as const;
 
 export type TimeSlot = (typeof TIME_SLOTS)[number];

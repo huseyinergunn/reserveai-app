@@ -10,6 +10,7 @@ import { Step2 }         from './components/steps/Step2';
 import { Step3 }         from './components/steps/Step3';
 import { SuccessScreen } from './components/screens/SuccessScreen';
 import { DeclineScreen } from './components/screens/DeclineScreen';
+import { ResultBanner }  from './components/ui/ResultBanner';
 import { Sparkles, Bot, CalendarCheck, Zap } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,7 @@ function AppContent() {
 
   return (
     <div className="page-bg min-h-screen flex flex-col">
+      <ResultBanner />
       <Navbar />
 
       <main className="flex-1 flex flex-col relative z-10">

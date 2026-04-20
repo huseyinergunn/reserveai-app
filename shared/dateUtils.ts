@@ -62,11 +62,11 @@ export function getAvailableDateOptions(
  */
 export function parseDateTimeFromForm(
   dateStr: string,  // YYYY-MM-DD
-  timeSlot: string, // e.g. "9:00 am"
-  timezone: string = 'UTC',
+  timeSlot: string, // e.g. "16:00"
+  timezone: string = 'Europe/Istanbul',
 ): string {
   const raw = `${dateStr} ${timeSlot}`;
-  const dt = DateTime.fromFormat(raw, "yyyy-MM-dd h:mm a", { zone: timezone });
+  const dt = DateTime.fromFormat(raw, "yyyy-MM-dd HH:mm", { zone: timezone });
 
   if (!dt.isValid) {
     throw new Error(
@@ -79,12 +79,12 @@ export function parseDateTimeFromForm(
 
 /**
  * Formats an ISO 8601 string for display in emails / UI.
- * Output: "Mon, 02 Jun @ 9:00 AM"
+ * Output: "24 Nisan Cuma, 16:00"
  */
-export function formatDisplayDateTime(iso: string, timezone: string = 'UTC'): string {
+export function formatDisplayDateTime(iso: string, timezone: string = 'Europe/Istanbul'): string {
   const dt = DateTime.fromISO(iso, { zone: timezone });
   if (!dt.isValid) throw new Error(`Invalid ISO string: "${iso}"`);
-  return dt.toFormat("EEE, dd MMM '@' h:mm a");
+  return dt.setLocale('tr').toFormat("d MMMM cccc, HH:mm");
 }
 
 /**

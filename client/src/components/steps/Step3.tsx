@@ -77,10 +77,17 @@ export function Step3() {
     [aiDate, aiTime, availableDates],
   );
 
-  const { register, handleSubmit, setError, watch, formState: { errors } } = useForm<Step3Input>({
+  const { register, handleSubmit, setError, watch, setValue, formState: { errors } } = useForm<Step3Input>({
     resolver: zodResolver(step3Schema),
     defaultValues: { date: aiDate, time: aiTime },
   });
+
+  // Sync AI suggestions into the select fields whenever extractedData arrives
+  // (defaultValues only applies on mount — this handles async AI responses)
+  useEffect(() => {
+    if (extractedData?.date) setValue('date', extractedData.date,  { shouldValidate: false });
+    if (extractedData?.time) setValue('time', extractedData.time,  { shouldValidate: false });
+  }, [extractedData, setValue]);
 
   const selectedDate = watch('date');
   const bookedDateTimes = dateOptions?.bookedDateTimes ?? [];
@@ -106,7 +113,8 @@ export function Step3() {
     if (result.fieldErrors) {
       for (const [field, message] of Object.entries(result.fieldErrors)) {
         if (field === 'date' || field === 'time' || field === 'dateTime') {
-          setError(field === 'dateTime' ? 'date' : (field as keyof Step3Values), { message });
+          // dateTime conflict errors appear under the time selector, not date
+          setError(field === 'dateTime' ? 'time' : (field as keyof Step3Values), { message });
         }
       }
     }
