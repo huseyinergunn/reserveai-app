@@ -66,7 +66,10 @@ export function Step3() {
   useEffect(() => { loadDateOptions(); }, [loadDateOptions]);
 
   const availableDates = dateOptions?.dates ?? clientDates;
-  const availableTimes = dateOptions?.times ?? TIME_SLOTS;
+  // Always use local TIME_SLOTS for the time selector — never trust the server's
+  // time list, which may be stale or formatted differently (e.g. AM/PM).
+  // The Zod schema validates against the same constant, so they always match.
+  const availableTimes = TIME_SLOTS;
 
   const aiDate = extractedData?.date ?? '';
   const aiTime = extractedData?.time ?? '';
@@ -82,11 +85,18 @@ export function Step3() {
     defaultValues: { date: aiDate, time: aiTime },
   });
 
-  // Sync AI suggestions into the select fields whenever extractedData arrives
-  // (defaultValues only applies on mount — this handles async AI responses)
+  // Sync AI suggestions into the select fields whenever extractedData arrives.
+  // defaultValues only apply on mount; this effect handles async AI responses.
+  // shouldDirty + shouldTouch ensure the native <select> DOM element re-renders.
   useEffect(() => {
-    if (extractedData?.date) setValue('date', extractedData.date,  { shouldValidate: false });
-    if (extractedData?.time) setValue('time', extractedData.time,  { shouldValidate: false });
+    if (extractedData?.date) {
+      setValue('date', extractedData.date, { shouldDirty: true, shouldTouch: true, shouldValidate: false });
+    }
+    if (extractedData?.time) {
+      // Normalise: find the exact slot string so value always matches TIME_SLOTS
+      const slot = (TIME_SLOTS as readonly string[]).find((s) => s === extractedData.time);
+      if (slot) setValue('time', slot, { shouldDirty: true, shouldTouch: true, shouldValidate: false });
+    }
   }, [extractedData, setValue]);
 
   const selectedDate = watch('date');
