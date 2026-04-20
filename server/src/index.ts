@@ -11,6 +11,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { createAiService } from './services/ai/AiServiceFactory';
 import { MailService } from './services/mail/MailService';
 import { CalendarService } from './services/calendar/CalendarService';
+import { SheetsService } from './services/sheets/SheetsService';
 import { WebhookService } from './services/WebhookService';
 
 import { DateValidator } from './validators/date.validator';
@@ -79,16 +80,29 @@ const dateValidator = new DateValidator(
 
 const webhookService = new WebhookService(process.env.N8N_WEBHOOK_URL);
 
+// SheetsService is optional — only created when GOOGLE_SHEETS_SPREADSHEET_ID is set
+const sheetsService = process.env.GOOGLE_SHEETS_SPREADSHEET_ID
+  ? new SheetsService({
+      clientId:      process.env.GOOGLE_CALENDAR_CLIENT_ID  ?? '',
+      clientSecret:  process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? '',
+      refreshToken:  process.env.GOOGLE_CALENDAR_REFRESH_TOKEN ?? '',
+      spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+      sheetName:     process.env.GOOGLE_SHEETS_NAME ?? 'Sayfa1',
+    })
+  : undefined;
+
 const formController = new FormController({
   aiService,
   mailService,
   dateValidator,
   webhookService,
+  sheetsService,
 });
 
 const approvalController = new ApprovalController({
   calendarService,
   mailService,
+  sheetsService,
   n8nApprovalWebhookUrl:     process.env.N8N_APPROVAL_WEBHOOK_URL,
   n8nCancellationWebhookUrl: process.env.N8N_CANCELLATION_WEBHOOK_URL,
   appBaseUrl:                process.env.APP_BASE_URL ?? `http://localhost:${PORT}`,

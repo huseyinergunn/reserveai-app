@@ -2,12 +2,14 @@ import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { CalendarService } from '../services/calendar/CalendarService';
 import type { MailService } from '../services/mail/MailService';
+import type { SheetsService } from '../services/sheets/SheetsService';
 import { AppointmentModel, type IAppointmentDoc } from '../models/Appointment';
 import { logger } from '../utils/logger';
 
 interface Deps {
   calendarService:           CalendarService;
   mailService:               MailService;
+  sheetsService?:            SheetsService;
   /** n8n randevu-onayla webhook base URL */
   n8nApprovalWebhookUrl:     string | undefined;
   /** n8n randevu-iptal webhook URL — called when user cancels */
@@ -148,45 +150,58 @@ export class ApprovalController {
       return;
     }
 
-    const docId      = (doc._id as { toString(): string }).toString();
-    const cancelUrl  = `${this.deps.appBaseUrl}/api/approval/cancel/${doc.cancellationToken}`;
-    const timezone   = process.env.TIMEZONE ?? 'Europe/Istanbul';
-    const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-      timeZone: timezone,
-    }).format(new Date(doc.dateTime));
+    const docId     = (doc._id as { toString(): string }).toString();
+    const cancelUrl = `${this.deps.appBaseUrl}/api/approval/cancel/${doc.cancellationToken}`;
 
-    if (this.deps.n8nApprovalWebhookUrl) {
-      const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
-      const params  = new URLSearchParams({
-        action:          'approve',
-        id:              docId,
+    // Always process directly — calendar + DB + confirmation email
+    // n8n is only notified afterwards for optional Sheets sync (fire-and-forget)
+    try {
+      const appointment = await this.deps.calendarService.createAppointment({
         name:            doc.name,
         email:           doc.email,
-        dateTime:        doc.dateTime,
-        dateTimeDisplay,
-        cancelUrl,
+        startTime:       doc.dateTime,
+        enquirySummary:  doc.enquirySummary,
+        originalEnquiry: doc.enquiry,
       });
-      // Fire-and-forget — admin gets success page immediately; n8n processes async
+      doc.status          = 'approved';
+      doc.calendarEventId = appointment.id;
+      await doc.save();
+      logger.info(`[ApprovalController] Approved ${doc.bookingReference} — event ${appointment.id}`);
+
+      // Confirmation email to user (pure HTML, no ICS)
+      this.deps.mailService.sendApprovalConfirmation({
+        name:          doc.name,
+        email:         doc.email,
+        dateTime:      doc.dateTime,
+        cancelUrl,
+        conferenceLink: appointment.conferenceLink,
+      }).catch((err) => logger.error('[ApprovalController] Confirmation email failed:', err));
+
+      // Optional: update Sheets status
+      this.deps.sheetsService?.updateRow(docId, {
+        status:          'approved',
+        calendarEventId: appointment.id,
+      }).catch((err) => logger.warn('[ApprovalController] Sheets update failed (non-fatal):', err));
+
+    } catch (err) {
+      logger.error('[ApprovalController] shortApprove processing failed:', err);
+    }
+
+    // Optional: notify n8n for additional Sheets/audit trail (fire-and-forget)
+    if (this.deps.n8nApprovalWebhookUrl && doc.status === 'approved') {
+      const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+      const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+      }).format(new Date(doc.dateTime));
+      const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
+      const params  = new URLSearchParams({
+        action: 'approve', id: docId, name: doc.name, email: doc.email,
+        dateTime: doc.dateTime, dateTimeDisplay, cancelUrl,
+        calendarEventId: doc.calendarEventId ?? '',
+      });
       fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-        .catch((err) => logger.error('[ApprovalController] n8n approve notify failed:', err));
-    } else {
-      // Fallback: no n8n — process directly
-      try {
-        await this.deps.calendarService.createAppointment({
-          name:            doc.name,
-          email:           doc.email,
-          startTime:       doc.dateTime,
-          enquirySummary:  doc.enquirySummary,
-          originalEnquiry: doc.enquiry,
-        });
-        doc.status = 'approved';
-        await doc.save();
-        logger.info(`[ApprovalController] Direct approve (no n8n): ${doc.bookingReference}`);
-      } catch (err) {
-        logger.error('[ApprovalController] Direct approve failed:', err);
-      }
+        .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
     res.status(200).type('html').send(this.buildApproveSuccessHtml());
@@ -201,40 +216,38 @@ export class ApprovalController {
       return;
     }
 
-    const docId      = (doc._id as { toString(): string }).toString();
-    const timezone   = process.env.TIMEZONE ?? 'Europe/Istanbul';
-    const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-      timeZone: timezone,
-    }).format(new Date(doc.dateTime));
+    const docId = (doc._id as { toString(): string }).toString();
 
-    if (this.deps.n8nApprovalWebhookUrl) {
+    // Always process directly — rejection email + DB update
+    try {
+      await this.deps.mailService.sendRejection({
+        name: doc.name, email: doc.email, dateTime: doc.dateTime,
+      });
+      doc.status = 'rejected';
+      await doc.save();
+      logger.info(`[ApprovalController] Rejected ${doc.bookingReference}`);
+
+      // Optional: update Sheets status
+      this.deps.sheetsService?.updateRow(docId, { status: 'rejected' })
+        .catch((err) => logger.warn('[ApprovalController] Sheets update failed (non-fatal):', err));
+    } catch (err) {
+      logger.error('[ApprovalController] shortReject processing failed:', err);
+    }
+
+    // Optional: notify n8n (fire-and-forget)
+    if (this.deps.n8nApprovalWebhookUrl && doc.status === 'rejected') {
+      const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+      const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+      }).format(new Date(doc.dateTime));
       const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
       const params  = new URLSearchParams({
-        action:          'reject',
-        id:              docId,
-        name:            doc.name,
-        email:           doc.email,
-        dateTime:        doc.dateTime,
-        dateTimeDisplay,
+        action: 'reject', id: docId, name: doc.name, email: doc.email,
+        dateTime: doc.dateTime, dateTimeDisplay,
       });
       fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-        .catch((err) => logger.error('[ApprovalController] n8n reject notify failed:', err));
-    } else {
-      // Fallback: send rejection email directly
-      try {
-        await this.deps.mailService.sendRejection({
-          name:     doc.name,
-          email:    doc.email,
-          dateTime: doc.dateTime,
-        });
-        doc.status = 'rejected';
-        await doc.save();
-        logger.info(`[ApprovalController] Direct reject (no n8n): ${doc.bookingReference}`);
-      } catch (err) {
-        logger.error('[ApprovalController] Direct reject failed:', err);
-      }
+        .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
     res.status(200).type('html').send(this.buildRejectSuccessHtml());
@@ -326,7 +339,25 @@ export class ApprovalController {
       doc.calendarEventId = appointment.id;
       await doc.save();
 
+      const docId     = (doc._id as { toString(): string }).toString();
+      const cancelUrl = `${this.deps.appBaseUrl}/api/approval/cancel/${doc.cancellationToken}`;
+
       logger.info(`[ApprovalController] Approved ${doc.bookingReference} — event ${appointment.id}`);
+
+      // Confirmation email (pure HTML, no ICS)
+      this.deps.mailService.sendApprovalConfirmation({
+        name:          doc.name,
+        email:         doc.email,
+        dateTime:      doc.dateTime,
+        cancelUrl,
+        conferenceLink: appointment.conferenceLink,
+      }).catch((err) => logger.error('[ApprovalController] Confirmation email failed:', err));
+
+      // Optional Sheets update
+      this.deps.sheetsService?.updateRow(docId, {
+        status:          'approved',
+        calendarEventId: appointment.id,
+      }).catch((err) => logger.warn('[ApprovalController] Sheets update failed (non-fatal):', err));
 
       res.status(200).json({
         status: 'approved',

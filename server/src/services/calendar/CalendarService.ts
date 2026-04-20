@@ -57,6 +57,7 @@ export class CalendarService {
     const response = await calendar.events.insert({
       calendarId: this.cfg.calendarId,
       conferenceDataVersion: 1,
+      sendUpdates: 'none',   // Google Calendar'ın kendi ICS davetiyesini gönderme
       requestBody: body,
     });
 

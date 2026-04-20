@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { AiService } from '../services/ai/AiService';
 import type { MailService } from '../services/mail/MailService';
 import type { WebhookService } from '../services/WebhookService';
+import type { SheetsService } from '../services/sheets/SheetsService';
 import { DateValidator } from '../validators/date.validator';
 import {
   initialFormSchema,
@@ -24,6 +25,7 @@ interface Deps {
   mailService:     MailService;
   dateValidator:   DateValidator;
   webhookService:  WebhookService;
+  sheetsService?:  SheetsService;
 }
 
 export class FormController {
@@ -212,7 +214,26 @@ export class FormController {
         const approveUrl = `${appBaseUrl}/api/approval/a/${docId}`;
         const rejectUrl  = `${appBaseUrl}/api/approval/r/${docId}`;
 
-        // ── Phase 2: n8n webhook — fires right after DB save ─────────────────
+        // ── Phase 2a: Google Sheets — direct write (no n8n dependency) ─────────
+        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+        }).format(new Date(submission.dateTime));
+
+        this.deps.sheetsService?.appendRow({
+          id:              docId,
+          name:            submission.name,
+          email:           submission.email,
+          enquiry:         submission.enquiry,
+          status:          'pending',
+          dateTime:        submission.dateTime,
+          dateTimeDisplay,
+          approveUrl,
+          rejectUrl,
+        }).catch((err) => logger.warn('[FormController] Sheets append failed (non-fatal):', err));
+
+        // ── Phase 2b: n8n webhook — optional, for additional automation ───────
         await this.deps.webhookService.notify({
           id:         docId,
           name:       submission.name,

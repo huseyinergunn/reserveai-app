@@ -79,6 +79,45 @@ export class MailService {
     logger.info(`[MailService] Approval request → ${this.cfg.adminEmail} (ref=${payload.bookingReference})`);
   }
 
+  /** Sends a confirmation to the user after admin approval. No ICS — pure HTML. */
+  async sendApprovalConfirmation(params: {
+    name: string;
+    email: string;
+    dateTime: string;
+    cancelUrl: string;
+    conferenceLink?: string;
+  }): Promise<void> {
+    const display = formatDisplayDateTime(params.dateTime);
+    const meetRow = params.conferenceLink
+      ? `<tr><td style="padding:12px 16px;font-weight:600;color:#15803d">🎥 Google Meet</td>
+         <td style="padding:12px 16px"><a href="${params.conferenceLink}" style="color:#2563eb">${params.conferenceLink}</a></td></tr>`
+      : '';
+    await this.send({
+      to: params.email,
+      subject: `✅ Randevunuz Onaylandı — ${escapeHtml(display)}`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+<table width="600" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+<tr><td style="background:linear-gradient(135deg,#16a34a,#15803d);padding:32px 40px;text-align:center">
+  <h1 style="color:white;margin:0;font-size:24px;font-weight:700">✅ Randevunuz Onaylandı!</h1>
+</td></tr>
+<tr><td style="padding:32px 40px">
+  <p style="color:#374151;font-size:16px;margin:0 0 20px">Merhaba <strong>${escapeHtml(params.name)}</strong>,</p>
+  <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px">Randevu talebiniz onaylandı. Sizi bekliyoruz!</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;overflow:hidden;margin:0 0 24px">
+    <tr><td style="padding:12px 16px;font-weight:600;color:#15803d;width:140px">📅 Tarih &amp; Saat</td>
+        <td style="padding:12px 16px;color:#1e293b;font-weight:500">${escapeHtml(display)}</td></tr>
+    ${meetRow}
+  </table>
+  <p style="color:#94a3b8;font-size:13px;margin:0 0 12px">Randevunuzu iptal etmek isterseniz:</p>
+  <a href="${params.cancelUrl}" style="display:inline-block;background:#f1f5f9;color:#64748b;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:13px;border:1px solid #cbd5e1">🚫 Randevuyu İptal Et</a>
+</td></tr>
+</table></td></tr></table></body></html>`,
+    });
+    logger.info(`[MailService] Approval confirmation → ${params.email}`);
+  }
+
   /** Notifies the user that their request was declined. */
   async sendRejection(
     submission: Pick<FormSubmission, 'name' | 'email' | 'dateTime'>,
