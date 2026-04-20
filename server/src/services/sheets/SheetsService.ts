@@ -8,23 +8,36 @@ interface SheetsConfig {
   spreadsheetId: string;
   sheetName:     string;   // sheet tab name, e.g. "Sayfa1"
   tableName?:    string;   // named table/range, e.g. "Randevular"
+  idColumn?:     string;   // header name used as the unique-ID column (default: "id")
 }
 
 export class SheetsService {
-  constructor(private readonly cfg: SheetsConfig) {}
+  private readonly idColumn: string;
+
+  constructor(private readonly cfg: SheetsConfig) {
+    this.idColumn = cfg.idColumn ?? 'id';
+  }
 
   /**
-   * Appends a row. Column order is determined by the header row already in the
-   * spreadsheet so the field names must match the column headers exactly.
+   * Appends a row. Column order is determined by the header row.
+   * The configured idColumn is used to look up the 'id' key from data,
+   * so the id value lands in the correct column regardless of its header name.
    */
   async appendRow(data: Record<string, string>): Promise<void> {
     const sheets  = await this.buildClient();
     const headers = await this.getHeaders(sheets);
-    const row     = headers.map((h) => data[h] ?? '');
 
-    // If a named table is configured use it directly; otherwise fall back to
-    // the explicit column range so the API can locate the table boundary.
-    const lastCol    = headers.length > 0 ? this.colLetter(headers.length - 1) : 'Z';
+    // Build a normalised data map: if the spreadsheet id column header differs
+    // from "id" (e.g. "q"), copy the id value under that header name so it
+    // lands in the right cell when we map over headers below.
+    const mapped: Record<string, string> = { ...data };
+    if (this.idColumn !== 'id' && data['id']) {
+      mapped[this.idColumn] = data['id'];
+    }
+
+    const row = headers.map((h) => mapped[h] ?? '');
+
+    const lastCol     = headers.length > 0 ? this.colLetter(headers.length - 1) : 'Z';
     const appendRange = this.cfg.tableName
       ? this.cfg.tableName
       : `${this.cfg.sheetName}!A1:${lastCol}1`;
@@ -32,31 +45,32 @@ export class SheetsService {
     await sheets.spreadsheets.values.append({
       spreadsheetId:    this.cfg.spreadsheetId,
       range:            appendRange,
-      // RAW keeps every value as a literal string — prevents Sheets from
-      // auto-converting "23 Nisan 2026 14:00" into a serial date number.
-      valueInputOption: 'RAW',
+      valueInputOption: 'RAW',       // keeps strings as-is, no date auto-conversion
       insertDataOption: 'INSERT_ROWS',
       requestBody:      { values: [row] },
     });
-    logger.info(`[SheetsService] Row appended to "${appendRange}" — id=${data['id'] ?? '?'}`);
+    logger.info(`[SheetsService] Row appended — id=${data['id'] ?? '?'}`);
   }
 
   /**
-   * Finds a row by the value in the "id" column and updates the specified fields.
-   * Missing columns are silently skipped.
+   * Finds a row by the value in the id column and updates specified fields.
+   * Uses the configured idColumn name to locate the correct column.
    */
   async updateRow(id: string, updates: Record<string, string>): Promise<void> {
     const sheets  = await this.buildClient();
     const headers = await this.getHeaders(sheets);
 
-    // Find which column holds the 'id' field (don't assume column A)
-    const idColIdx = headers.indexOf('id');
+    const idColIdx = headers.indexOf(this.idColumn);
     if (idColIdx === -1) {
-      logger.warn(`[SheetsService] No 'id' column found in sheet headers — cannot locate row`);
+      logger.warn(
+        `[SheetsService] Column "${this.idColumn}" not found in headers [${headers.join(', ')}] — ` +
+        `set GOOGLE_SHEETS_ID_COLUMN to match your spreadsheet's id column header`,
+      );
       return;
     }
     const idColLetter = this.colLetter(idColIdx);
 
+    // Read the full id column to find the target row number
     const idRes = await sheets.spreadsheets.values.get({
       spreadsheetId: this.cfg.spreadsheetId,
       range:         `${this.cfg.sheetName}!${idColLetter}:${idColLetter}`,
@@ -64,28 +78,26 @@ export class SheetsService {
     const idCol  = ((idRes.data.values ?? []) as string[][]).map((r) => r[0] ?? '');
     const rowIdx = idCol.findIndex((v) => v === id);
     if (rowIdx === -1) {
-      logger.warn(`[SheetsService] Row not found for id=${id}`);
+      logger.warn(`[SheetsService] Row not found for id="${id}" in column "${this.idColumn}"`);
       return;
     }
-    const rowNum = rowIdx + 1; // 1-indexed
+    const rowNum = rowIdx + 1; // 1-indexed sheet row
 
     for (const [field, value] of Object.entries(updates)) {
       const colIdx = headers.indexOf(field);
       if (colIdx === -1) continue;
       const col = this.colLetter(colIdx);
       await sheets.spreadsheets.values.update({
-        spreadsheetId:   this.cfg.spreadsheetId,
-        range:           `${this.cfg.sheetName}!${col}${rowNum}`,
-        valueInputOption:'RAW',
-        requestBody:     { values: [[value]] },
+        spreadsheetId:    this.cfg.spreadsheetId,
+        range:            `${this.cfg.sheetName}!${col}${rowNum}`,
+        valueInputOption: 'RAW',
+        requestBody:      { values: [[value]] },
       });
     }
     logger.info(`[SheetsService] Row updated — id=${id} fields=[${Object.keys(updates).join(',')}]`);
   }
 
   private async getHeaders(sheets: sheets_v4.Sheets): Promise<string[]> {
-    // Named range returns the full table; take only the first row (headers).
-    // Fallback: read the first row of the configured sheet tab.
     const range = this.cfg.tableName ?? `${this.cfg.sheetName}!1:1`;
     const res   = await sheets.spreadsheets.values.get({
       spreadsheetId: this.cfg.spreadsheetId,
@@ -101,7 +113,6 @@ export class SheetsService {
   }
 
   private colLetter(zeroIdx: number): string {
-    // Handles A–Z (26 columns max — sufficient for typical appointment sheets)
     return String.fromCharCode(65 + zeroIdx);
   }
 }

@@ -87,8 +87,9 @@ const sheetsService = process.env.GOOGLE_SHEETS_SPREADSHEET_ID
       clientSecret:  process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? '',
       refreshToken:  process.env.GOOGLE_CALENDAR_REFRESH_TOKEN ?? '',
       spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
-      sheetName:     process.env.GOOGLE_SHEETS_NAME  ?? 'Sayfa1',
-      tableName:     process.env.GOOGLE_SHEETS_TABLE_NAME,   // e.g. "Randevular"
+      sheetName:     process.env.GOOGLE_SHEETS_NAME       ?? 'Sayfa1',
+      tableName:     process.env.GOOGLE_SHEETS_TABLE_NAME,          // e.g. "Randevular"
+      idColumn:      process.env.GOOGLE_SHEETS_ID_COLUMN  ?? 'id',  // e.g. "q" if header differs
     })
   : undefined;
 
