@@ -5,22 +5,22 @@ type BannerCfg = { text: string; icon: typeof CheckCircle; color: string };
 
 const MESSAGES: Record<string, BannerCfg> = {
   success: {
-    text: '✅ Randevu onaylandı! Onay e-postası gönderildi.',
+    text: 'Randevunuz başarıyla onaylandı!',
     icon: CheckCircle,
     color: 'bg-green-50 border-green-300 text-green-900 dark:bg-green-900/40 dark:border-green-600 dark:text-green-200',
   },
   rejected: {
-    text: '❌ Randevu reddedildi. Kullanıcıya bilgilendirme e-postası gönderildi.',
+    text: 'Randevu talebi reddedildi.',
     icon: XCircle,
     color: 'bg-red-50 border-red-300 text-red-900 dark:bg-red-900/40 dark:border-red-600 dark:text-red-200',
   },
   cancelled: {
-    text: '🚫 Randevunuz başarıyla iptal edildi.',
+    text: 'Randevunuz başarıyla iptal edilmiştir.',
     icon: AlertCircle,
     color: 'bg-yellow-50 border-yellow-300 text-yellow-900 dark:bg-yellow-900/40 dark:border-yellow-600 dark:text-yellow-200',
   },
   error: {
-    text: '⚠️ İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.',
+    text: 'İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.',
     icon: XCircle,
     color: 'bg-red-50 border-red-300 text-red-900 dark:bg-red-900/40 dark:border-red-600 dark:text-red-200',
   },

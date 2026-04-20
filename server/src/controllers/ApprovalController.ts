@@ -148,7 +148,7 @@ export class ApprovalController {
     if (!doc) return;
 
     if (doc.status !== 'pending') {
-      res.redirect(`${this.deps.clientUrl}?result=already-${doc.status}`);
+      res.redirect(`${this.deps.clientUrl}/?result=already-${doc.status}`);
       return;
     }
 
@@ -187,7 +187,7 @@ export class ApprovalController {
 
     } catch (err) {
       logger.error('[ApprovalController] shortApprove processing failed:', err);
-      res.redirect(`${this.deps.clientUrl}?result=error`);
+      res.redirect(`${this.deps.clientUrl}/?result=error`);
       return;
     }
 
@@ -208,7 +208,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
-    res.redirect(`${this.deps.clientUrl}?result=success`);
+    res.redirect(`${this.deps.clientUrl}/?result=success`);
   };
 
   shortReject = async (req: Request, res: Response): Promise<void> => {
@@ -216,7 +216,7 @@ export class ApprovalController {
     if (!doc) return;
 
     if (doc.status !== 'pending') {
-      res.redirect(`${this.deps.clientUrl}?result=already-${doc.status}`);
+      res.redirect(`${this.deps.clientUrl}/?result=already-${doc.status}`);
       return;
     }
 
@@ -236,7 +236,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] Sheets update failed (non-fatal):', err));
     } catch (err) {
       logger.error('[ApprovalController] shortReject processing failed:', err);
-      res.redirect(`${this.deps.clientUrl}?result=error`);
+      res.redirect(`${this.deps.clientUrl}/?result=error`);
       return;
     }
 
@@ -256,7 +256,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
-    res.redirect(`${this.deps.clientUrl}?result=rejected`);
+    res.redirect(`${this.deps.clientUrl}/?result=rejected`);
   };
 
   // ---------------------------------------------------------------------------
@@ -266,18 +266,18 @@ export class ApprovalController {
   cancelAppointment = async (req: Request, res: Response): Promise<void> => {
     const token = req.params.token?.trim();
     if (!token) {
-      res.redirect(`${this.deps.clientUrl}?result=cancel-invalid`);
+      res.redirect(`${this.deps.clientUrl}/?result=cancel-invalid`);
       return;
     }
 
     const doc = await AppointmentModel.findOne({ cancellationToken: token });
     if (!doc) {
-      res.redirect(`${this.deps.clientUrl}?result=cancel-invalid`);
+      res.redirect(`${this.deps.clientUrl}/?result=cancel-invalid`);
       return;
     }
 
     if (doc.status === 'cancelled') {
-      res.redirect(`${this.deps.clientUrl}?result=already-cancelled`);
+      res.redirect(`${this.deps.clientUrl}/?result=already-cancelled`);
       return;
     }
 
@@ -287,7 +287,7 @@ export class ApprovalController {
     logger.info(`[ApprovalController] Cancelled: ${doc.bookingReference}`);
 
     // Redirect immediately; remaining cleanup is fire-and-forget
-    res.redirect(`${this.deps.clientUrl}?result=cancelled`);
+    res.redirect(`${this.deps.clientUrl}/?result=cancelled`);
 
     // ── Async cleanup ─────────────────────────────────────────────────────────
     const cleanup = async () => {
