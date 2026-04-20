@@ -19,6 +19,7 @@ import {
 import { api, type AppointmentStatusItem } from '../../services/api';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE }             from '@shared/constants';
+import { ResultBanner }         from '../ui/ResultBanner';
 
 // ---------------------------------------------------------------------------
 // Status badge helpers
@@ -304,6 +305,7 @@ export function LandingPage() {
 
   return (
     <div className="page-bg min-h-screen flex flex-col">
+      <ResultBanner />
       {/* Back to portal — fixed corner button */}
       <a
         href="/"

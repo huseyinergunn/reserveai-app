@@ -1,6 +1,7 @@
 import { CalendarCheck, LayoutDashboard, Sparkles, ArrowRight, Shield } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { Sun, Moon } from 'lucide-react';
+import { ResultBanner } from '../ui/ResultBanner';
 
 function ThemeToggle() {
   const { isDark, toggle } = useTheme();
@@ -20,6 +21,7 @@ function ThemeToggle() {
 export function PortalPage() {
   return (
     <div className="min-h-screen page-bg flex flex-col items-center justify-center px-4 relative">
+      <ResultBanner />
       <ThemeToggle />
 
       {/* Brand */}
