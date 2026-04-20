@@ -38,10 +38,17 @@ export class SheetsService {
     const sheets  = await this.buildClient();
     const headers = await this.getHeaders(sheets);
 
-    // Get id column (A) to locate the row
+    // Find which column holds the 'id' field (don't assume column A)
+    const idColIdx = headers.indexOf('id');
+    if (idColIdx === -1) {
+      logger.warn(`[SheetsService] No 'id' column found in sheet headers — cannot locate row`);
+      return;
+    }
+    const idColLetter = this.colLetter(idColIdx);
+
     const idRes = await sheets.spreadsheets.values.get({
       spreadsheetId: this.cfg.spreadsheetId,
-      range:         `${this.cfg.sheetName}!A:A`,
+      range:         `${this.cfg.sheetName}!${idColLetter}:${idColLetter}`,
     });
     const idCol  = ((idRes.data.values ?? []) as string[][]).map((r) => r[0] ?? '');
     const rowIdx = idCol.findIndex((v) => v === id);

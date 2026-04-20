@@ -106,6 +106,7 @@ const approvalController = new ApprovalController({
   n8nApprovalWebhookUrl:     process.env.N8N_APPROVAL_WEBHOOK_URL,
   n8nCancellationWebhookUrl: process.env.N8N_CANCELLATION_WEBHOOK_URL,
   appBaseUrl:                process.env.APP_BASE_URL ?? `http://localhost:${PORT}`,
+  clientUrl:                 allowedOrigins[0],
 });
 
 const adminController = new AdminController({

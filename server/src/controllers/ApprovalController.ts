@@ -16,6 +16,8 @@ interface Deps {
   n8nCancellationWebhookUrl: string | undefined;
   /** Server base URL — used to construct cancelUrl */
   appBaseUrl:                string;
+  /** Frontend base URL — used for post-action redirects */
+  clientUrl:                 string;
 }
 
 /**
@@ -146,7 +148,7 @@ export class ApprovalController {
     if (!doc) return;
 
     if (doc.status !== 'pending') {
-      res.status(200).type('html').send(this.buildAlreadyProcessedHtml(doc.status));
+      res.redirect(`${this.deps.clientUrl}?result=already-${doc.status}`);
       return;
     }
 
@@ -185,6 +187,8 @@ export class ApprovalController {
 
     } catch (err) {
       logger.error('[ApprovalController] shortApprove processing failed:', err);
+      res.redirect(`${this.deps.clientUrl}?result=error`);
+      return;
     }
 
     // Optional: notify n8n for additional Sheets/audit trail (fire-and-forget)
@@ -204,7 +208,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
-    res.status(200).type('html').send(this.buildApproveSuccessHtml());
+    res.redirect(`${this.deps.clientUrl}?result=approved`);
   };
 
   shortReject = async (req: Request, res: Response): Promise<void> => {
@@ -212,7 +216,7 @@ export class ApprovalController {
     if (!doc) return;
 
     if (doc.status !== 'pending') {
-      res.status(200).type('html').send(this.buildAlreadyProcessedHtml(doc.status));
+      res.redirect(`${this.deps.clientUrl}?result=already-${doc.status}`);
       return;
     }
 
@@ -232,6 +236,8 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] Sheets update failed (non-fatal):', err));
     } catch (err) {
       logger.error('[ApprovalController] shortReject processing failed:', err);
+      res.redirect(`${this.deps.clientUrl}?result=error`);
+      return;
     }
 
     // Optional: notify n8n (fire-and-forget)
@@ -250,7 +256,7 @@ export class ApprovalController {
         .catch((err) => logger.warn('[ApprovalController] n8n notify failed (non-fatal):', err));
     }
 
-    res.status(200).type('html').send(this.buildRejectSuccessHtml());
+    res.redirect(`${this.deps.clientUrl}?result=rejected`);
   };
 
   // ---------------------------------------------------------------------------
@@ -266,12 +272,12 @@ export class ApprovalController {
 
     const doc = await AppointmentModel.findOne({ cancellationToken: token });
     if (!doc) {
-      res.status(404).type('html').send(this.buildCancelInvalidHtml());
+      res.redirect(`${this.deps.clientUrl}?result=cancel-invalid`);
       return;
     }
 
     if (doc.status === 'cancelled') {
-      res.status(200).type('html').send(this.buildAlreadyCancelledHtml());
+      res.redirect(`${this.deps.clientUrl}?result=already-cancelled`);
       return;
     }
 
@@ -280,8 +286,8 @@ export class ApprovalController {
     await doc.save();
     logger.info(`[ApprovalController] Cancelled: ${doc.bookingReference}`);
 
-    // Return success page right away; remaining cleanup is fire-and-forget
-    res.status(200).type('html').send(this.buildCancelSuccessHtml());
+    // Redirect immediately; remaining cleanup is fire-and-forget
+    res.redirect(`${this.deps.clientUrl}?result=cancelled`);
 
     // ── Async cleanup ─────────────────────────────────────────────────────────
     const cleanup = async () => {
@@ -306,7 +312,17 @@ export class ApprovalController {
         this.deps.mailService.sendCancellationToAdmin(emailParams),
       ]);
 
-      // 3. Notify n8n to update Google Sheets status
+      // 3. Update Sheets directly (awaited so it completes before cleanup exits)
+      try {
+        await this.deps.sheetsService?.updateRow(
+          (doc._id as { toString(): string }).toString(),
+          { status: 'cancelled' },
+        );
+      } catch (err) {
+        logger.warn('[ApprovalController] Sheets cancel update failed (non-fatal):', err);
+      }
+
+      // 4. Notify n8n (optional audit trail)
       if (this.deps.n8nCancellationWebhookUrl) {
         const params = new URLSearchParams({
           id:               (doc._id as { toString(): string }).toString(),
