@@ -306,21 +306,25 @@ export function LandingPage() {
   return (
     <div className="page-bg flex flex-col">
       <ResultBanner />
-      {/* Back to portal — fixed corner button */}
-      <a
-        href="/"
-        className="fixed bottom-8 right-8 z-[1001] flex items-center gap-2.5
-                   px-5 py-3 rounded-full
+      {/* Ana Sayfa — portal sayfasına dön */}
+      <button
+        type="button"
+        onClick={() => { window.location.href = '/'; }}
+        title="Ana Sayfaya Dön"
+        aria-label="Ana Sayfaya Dön"
+        className="fixed bottom-8 right-6 z-[9999]
+                   flex items-center gap-2
+                   py-3 px-6 rounded-full
                    text-sm font-semibold text-white
                    bg-blue-600 hover:bg-blue-500
-                   shadow-2xl shadow-blue-600/40
-                   backdrop-blur-sm
-                   transition-all duration-200 hover:-translate-y-1 active:translate-y-0 active:shadow-lg"
-        title="Ana Sayfaya Dön"
+                   shadow-2xl shadow-blue-600/60
+                   hover:scale-105 active:scale-95
+                   transition-all duration-200"
+        style={{ boxShadow: '0 8px 32px rgba(37,99,235,0.55), 0 0 0 1px rgba(96,165,250,0.2)' }}
       >
-        <Home className="w-4 h-4" />
+        <Home className="w-4 h-4 flex-shrink-0" />
         Ana Sayfa
-      </a>
+      </button>
       <Navbar />
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
@@ -334,7 +338,7 @@ export function LandingPage() {
         </div>
 
         {/* Headline */}
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight mb-4
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-snug tracking-tight mb-4 pt-1
                        text-slate-900 dark:text-white max-w-3xl mx-auto">
           Randevunuzu{' '}
           <span className="hero-gradient-text">Saniyeler İçinde</span>{' '}

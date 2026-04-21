@@ -44,7 +44,7 @@ export function PortalPage() {
           <Sparkles className="w-3.5 h-3.5" />
           Hoş Geldiniz
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-snug pt-1">
           Randevu Sistemine<br />
           <span className="hero-gradient-text">Hoş Geldiniz</span>
         </h1>

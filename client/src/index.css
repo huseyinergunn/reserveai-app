@@ -346,6 +346,8 @@
   /* ── Hero gradient text (App.tsx başlık animasyonu) ────────────────────── */
   .hero-gradient-text {
     display: inline-block;
+    padding-top: 0.1em;    /* İ Ç gibi Türkçe büyük harflerin üstü kesilmesin */
+    padding-bottom: 0.05em;
     background: linear-gradient(90deg, #60a5fa 0%, #a78bfa 50%, #60a5fa 100%);
     background-size: 200% auto;
     -webkit-background-clip: text;

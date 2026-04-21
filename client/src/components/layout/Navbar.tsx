@@ -4,19 +4,11 @@ import { NavModals, type ModalId } from './NavModals';
 import { useTheme } from '../../hooks/useTheme';
 import { Logo } from '../ui/Logo';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Nav link config — label → modal id mapping
-// ─────────────────────────────────────────────────────────────────────────────
-
 const NAV_ITEMS: { label: string; modal: ModalId }[] = [
   { label: 'Nasıl Çalışır?', modal: 'how'     },
   { label: 'Fiyatlandırma',  modal: 'pricing'  },
   { label: 'İletişim',       modal: 'contact'  },
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Theme toggle button
-// ─────────────────────────────────────────────────────────────────────────────
 
 function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   return (
@@ -34,7 +26,6 @@ function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
                  hover:text-slate-700 dark:hover:text-slate-200
                  hover:scale-105 active:scale-95 focus:outline-none"
     >
-      {/* Sun icon — visible in dark mode */}
       <Sun
         className="absolute w-4 h-4 text-amber-500"
         style={{
@@ -43,7 +34,6 @@ function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
           transition: 'opacity 350ms cubic-bezier(0.4,0,0.2,1), transform 400ms cubic-bezier(0.34,1.56,0.64,1)',
         }}
       />
-      {/* Moon icon — visible in light mode */}
       <Moon
         className="absolute w-4 h-4 text-brand-600 dark:text-brand-400"
         style={{
@@ -56,10 +46,6 @@ function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function Navbar() {
   const [activeModal, setActiveModal] = useState<ModalId | null>(null);
   const [mobileOpen,  setMobileOpen]  = useState(false);
@@ -67,10 +53,20 @@ export function Navbar() {
 
   const openModal  = (id: ModalId) => { setActiveModal(id); setMobileOpen(false); };
   const closeModal = ()             =>  setActiveModal(null);
+  const closeMobile = ()            =>  setMobileOpen(false);
 
   return (
     <>
-      <header className="navbar">
+      {/* ── Overlay — menü açıkken arka planı karart ──────────────────────── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-[999] bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      <header className="navbar" style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
         {/* ── Logo ──────────────────────────────────────────────────────── */}
         <a href="/" className="flex items-center gap-2.5 select-none">
           <Logo className="w-8 h-8 flex-shrink-0" />
@@ -97,10 +93,7 @@ export function Navbar() {
           ))}
 
           <div className="w-px h-5 bg-slate-200 dark:bg-white/10 mx-2" />
-
-          {/* ── Tema Geçiş Butonu ─────────────────────────────────────── */}
           <ThemeToggle isDark={isDark} onToggle={toggle} />
-
           <div className="w-px h-5 bg-slate-200 dark:bg-white/10 mx-2" />
 
           <button
@@ -123,40 +116,45 @@ export function Navbar() {
                        hover:bg-slate-100 dark:hover:bg-white/10"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? 'Menüyü kapat' : 'Menüyü aç'}
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
-      </header>
 
-      {/* ── Mobile dropdown menu ──────────────────────────────────────────── */}
-      {mobileOpen && (
-        <div className="md:hidden relative z-20 border-b px-4 py-3 space-y-1 animate-slide-up navbar-mobile-menu"
-        >
-          {NAV_ITEMS.map(({ label, modal }) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => openModal(modal)}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors
-                         text-slate-700 dark:text-slate-300
-                         hover:text-slate-900 dark:hover:text-white
-                         hover:bg-slate-100 dark:hover:bg-white/5"
-            >
-              {label}
-            </button>
-          ))}
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => openModal('pricing')}
-              className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg transition-colors"
-            >
-              Randevu Al
-            </button>
+        {/* ── Mobile dropdown — header'ın içinde absolute ───────────────── */}
+        {mobileOpen && (
+          <div
+            className="md:hidden absolute top-full left-0 right-0
+                       px-4 py-3 space-y-1 border-b navbar-mobile-menu
+                       animate-slide-up"
+            style={{ zIndex: 1000 }}
+          >
+            {NAV_ITEMS.map(({ label, modal }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => openModal(modal)}
+                className="w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-colors
+                           text-slate-700 dark:text-slate-300
+                           hover:text-slate-900 dark:hover:text-white
+                           hover:bg-slate-100 dark:hover:bg-white/5"
+              >
+                {label}
+              </button>
+            ))}
+            <div className="pt-1 pb-0.5">
+              <button
+                type="button"
+                onClick={() => openModal('pricing')}
+                className="w-full px-4 py-3 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg transition-colors"
+              >
+                Randevu Al
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* ── Modals ────────────────────────────────────────────────────────── */}
       {activeModal && (
