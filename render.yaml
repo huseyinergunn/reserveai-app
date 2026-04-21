@@ -109,10 +109,8 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
-      # Backend'in Render URL'i — server deploy edilince güncelle
       - key: VITE_API_URL
-        value: https://smart-app-server.onrender.com
+        value: https://smart-app-server-y5dh.onrender.com
 
-      # Gerekiyorsa — admin paneli için
       - key: VITE_ADMIN_SECRET_KEY
-        sync: false
+        value: admin-super-secret-2024
