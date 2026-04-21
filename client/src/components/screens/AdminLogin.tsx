@@ -71,7 +71,6 @@ export function AdminLogin() {
               onChange={(e) => { setKey(e.target.value); setError(''); }}
               placeholder="••••••••••••••••"
               className={`form-input mt-1 ${error ? 'form-input-error' : ''}`}
-              autoFocus
               disabled={loading}
             />
             {error && (

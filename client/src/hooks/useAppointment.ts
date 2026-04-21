@@ -16,7 +16,7 @@
  *                → Form End (success screen)
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAppointmentContext } from '../context/AppointmentContext';
 import type { Step1Data, SuccessSummary } from '../context/AppointmentContext';
 import { api } from '../services/api';
@@ -67,9 +67,15 @@ export function useAppointment() {
   const currentStep =
     state.screenState.screen === 'form' ? state.screenState.step : null;
 
-  // Adım her değiştiğinde sayfayı en tepe döndür (header'a ışınlanma önlenir)
+  // İlk render'da scroll yok — sadece adım DEĞİŞİNCE form kartına odaklan
+  const prevStepRef = useRef<number | null>(null);
   useEffect(() => {
-    if (currentStep) window.scrollTo(0, 0);
+    if (!currentStep) { prevStepRef.current = null; return; }
+    if (prevStepRef.current === null) { prevStepRef.current = currentStep; return; }
+    if (prevStepRef.current === currentStep) return;
+    prevStepRef.current = currentStep;
+    document.getElementById('booking-form-card')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [currentStep]);
 
   const isDeclined = state.screenState.screen === 'declined';

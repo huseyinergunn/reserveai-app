@@ -127,7 +127,6 @@ function LockScreen({ onAuth }: { onAuth: (key: string) => void }) {
               onChange={(e) => { setKey(e.target.value); setError(''); }}
               placeholder="••••••••••••••••"
               className={`form-input mt-1 ${error ? 'border-red-400 dark:border-red-500 ring-1 ring-red-400/40' : ''}`}
-              autoFocus
               disabled={loading}
             />
             {error && (

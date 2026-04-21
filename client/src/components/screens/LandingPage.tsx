@@ -61,7 +61,7 @@ function BookingTabContent() {
 
   return (
     <div className="px-3 sm:px-4 py-8 flex justify-center">
-      <div className="form-card w-full">
+      <div id="booking-form-card" className="form-card w-full">
         {isFormFlow && <StepIndicator currentStep={screenState.step} />}
         {screenState.screen === 'form' && screenState.step === 1 && <Step1 />}
         {screenState.screen === 'form' && screenState.step === 2 && <Step2 />}
@@ -304,20 +304,21 @@ export function LandingPage() {
   const [tab, setTab] = useState<Tab>('booking');
 
   return (
-    <div className="page-bg min-h-screen flex flex-col">
+    <div className="page-bg flex flex-col">
       <ResultBanner />
       {/* Back to portal — fixed corner button */}
       <a
         href="/"
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
-                   bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm
-                   border border-slate-200 dark:border-slate-700
-                   text-slate-600 dark:text-slate-300
-                   shadow-lg hover:shadow-xl hover:bg-white dark:hover:bg-slate-700
-                   transition-all duration-200 hover:-translate-y-0.5"
+        className="fixed bottom-8 right-8 z-[1001] flex items-center gap-2.5
+                   px-5 py-3 rounded-full
+                   text-sm font-semibold text-white
+                   bg-blue-600 hover:bg-blue-500
+                   shadow-2xl shadow-blue-600/40
+                   backdrop-blur-sm
+                   transition-all duration-200 hover:-translate-y-1 active:translate-y-0 active:shadow-lg"
         title="Ana Sayfaya Dön"
       >
-        <Home className="w-3.5 h-3.5" />
+        <Home className="w-4 h-4" />
         Ana Sayfa
       </a>
       <Navbar />
@@ -425,7 +426,6 @@ export function LandingPage() {
       {/* ── Trust indicators ────────────────────────────────────────────── */}
       <TrustSection />
 
-      <div className="flex-1" />
       <Footer />
     </div>
   );

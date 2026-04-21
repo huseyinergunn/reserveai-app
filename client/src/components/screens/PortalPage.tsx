@@ -21,7 +21,7 @@ function ThemeToggle() {
 
 export function PortalPage() {
   return (
-    <div className="min-h-screen page-bg flex flex-col items-center justify-center px-4 py-10 relative">
+    <div className="min-h-screen flex-1 page-bg flex flex-col items-center justify-center px-4 py-10 relative">
       <ResultBanner />
       <ThemeToggle />
 

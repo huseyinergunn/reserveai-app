@@ -133,7 +133,22 @@
 ───────────────────────────────────────────────────────────────────────────── */
 @layer base {
   * { @apply box-border; }
-  body { @apply font-sans; }
+
+  html {
+    font-size: 15px;
+    scroll-padding-top: 64px;
+  }
+  @media (min-width: 1024px) { html { font-size: 15.5px; } }
+
+  body {
+    @apply font-sans;
+    overflow-x: hidden;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+  }
 
   select option {
     background-color: var(--select-opt-bg);
@@ -148,7 +163,7 @@
 
   /* ── Glassmorphism form card ───────────────────────────────────────────── */
   .form-card {
-    @apply rounded-2xl w-full max-w-lg mx-auto animate-fade-in;
+    @apply rounded-2xl w-full max-w-md mx-auto animate-fade-in;
     padding:              1.5rem;
     background:           var(--card-bg);
     backdrop-filter:      blur(18px) saturate(150%);
@@ -225,7 +240,10 @@
   .page-bg {
     background: var(--page-gradient);
     position:   relative;
-    overflow:   hidden;
+    /* overflow: clip — pseudo-elementleri içeride keser, BFC oluşturmaz.
+       BFC oluşturmadığı için position:sticky çalışmaya devam eder.
+       (overflow:hidden sticky'yi kırıyordu, bu kırmaz.) */
+    overflow: clip;
   }
   .page-bg::before {
     content: '';
@@ -242,15 +260,16 @@
 
   /* ── Navbar ────────────────────────────────────────────────────────────── */
   .navbar {
-    @apply relative z-20 flex items-center justify-between border-b;
-    padding:       0.875rem 1rem;
+    @apply sticky top-0 flex items-center justify-between border-b;
+    z-index: 1000;
+    padding:       0.75rem 1rem;
     background:    var(--navbar-bg);
     border-color:  var(--navbar-border);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
   @media (min-width: 640px) {
-    .navbar { padding: 1rem 1.5rem; }
+    .navbar { padding: 0.875rem 1.5rem; }
   }
 
   /* ── Mobile nav dropdown ───────────────────────────────────────────────── */
