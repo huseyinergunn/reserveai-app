@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Lock, Loader2, AlertTriangle, CalendarCheck } from 'lucide-react';
+import { Lock, Loader2, AlertTriangle } from 'lucide-react';
+import { Logo } from '../ui/Logo';
 import { adminApi } from '../../services/api';
 
 const ENV_KEY    = import.meta.env.VITE_ADMIN_SECRET_KEY as string | undefined;
@@ -41,10 +42,8 @@ export function AdminLogin() {
       <div className="form-card max-w-sm w-full space-y-6 animate-fade-in">
         {/* Brand + header */}
         <div className="text-center space-y-4">
-          <a href="/" className="inline-flex items-center gap-2 select-none group">
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-600/30">
-              <CalendarCheck className="w-4.5 h-4.5" strokeWidth={2.5} />
-            </span>
+          <a href="/" className="inline-flex items-center gap-2 select-none">
+            <Logo className="w-9 h-9 flex-shrink-0" />
             <span className="text-lg font-bold text-slate-800 dark:text-white">
               Reserve<span className="text-brand-600 dark:text-brand-400">AI</span>
             </span>

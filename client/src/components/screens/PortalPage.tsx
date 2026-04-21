@@ -1,4 +1,5 @@
 import { CalendarCheck, LayoutDashboard, Sparkles, ArrowRight, Shield } from 'lucide-react';
+import { Logo } from '../ui/Logo';
 import { useTheme } from '../../hooks/useTheme';
 import { Sun, Moon } from 'lucide-react';
 import { ResultBanner } from '../ui/ResultBanner';
@@ -26,10 +27,7 @@ export function PortalPage() {
 
       {/* Brand */}
       <div className="flex items-center gap-3 mb-10 select-none animate-fade-in">
-        <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl
-                         bg-brand-600 text-white shadow-xl shadow-brand-600/40">
-          <CalendarCheck className="w-5 h-5" strokeWidth={2.5} />
-        </span>
+        <Logo className="w-11 h-11 flex-shrink-0" />
         <div>
           <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             Reserve<span className="text-brand-600 dark:text-brand-400">AI</span>

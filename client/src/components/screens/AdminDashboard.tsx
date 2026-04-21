@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  LayoutDashboard, LogOut, RefreshCw, Bell, CheckCircle2, XCircle, Ban,
+  LogOut, RefreshCw, Bell, CheckCircle2, XCircle, Ban,
   Clock, Users, CalendarCheck, Loader2, Eye, AlertTriangle,
   Calendar, List, Archive, ChevronLeft, ChevronRight, CheckSquare,
   Square, Trash2, Award,
 } from 'lucide-react';
+import { Logo } from '../ui/Logo';
 import { adminApi, type AdminAppointment, type AdminStats } from '../../services/api';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE } from '@shared/constants';
@@ -479,7 +480,7 @@ export function AdminDashboard() {
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <LayoutDashboard className="w-5 h-5 text-brand-500" />
+            <Logo className="w-7 h-7 flex-shrink-0" />
             <span className="font-bold text-slate-900 dark:text-white text-sm">Admin Paneli</span>
             <a href="/" className="ml-2 text-xs text-slate-400 hover:text-brand-500 transition-colors hidden sm:inline">
               ← Ana Sayfa

@@ -69,10 +69,37 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  // iOS: position:fixed + savedY kilidini uygula; diğer platformlarda overflow:hidden yeterli
   useEffect(() => {
+    const ios =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const savedY = window.scrollY;
+
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    if (ios) {
+      document.body.style.position = 'fixed';
+      document.body.style.top      = `-${savedY}px`;
+      document.body.style.width    = '100%';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      if (ios) {
+        document.body.style.position = '';
+        document.body.style.top      = '';
+        document.body.style.width    = '';
+      }
+      window.scrollTo(0, savedY);
+    };
   }, []);
+
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Modal açıldığında veya title değiştiğinde (farklı modal) içerik scroll'unu sıfırla
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [title]);
 
   return (
     <div
@@ -111,7 +138,7 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 sm:py-6">
+        <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 sm:py-6">
           {children}
         </div>
       </div>

@@ -16,7 +16,7 @@
  *                → Form End (success screen)
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAppointmentContext } from '../context/AppointmentContext';
 import type { Step1Data, SuccessSummary } from '../context/AppointmentContext';
 import { api } from '../services/api';
@@ -66,6 +66,11 @@ export function useAppointment() {
   /** Current form step (1 | 2 | 3), or null when not on a form screen. */
   const currentStep =
     state.screenState.screen === 'form' ? state.screenState.step : null;
+
+  // Adım her değiştiğinde sayfayı en tepe döndür (header'a ışınlanma önlenir)
+  useEffect(() => {
+    if (currentStep) window.scrollTo(0, 0);
+  }, [currentStep]);
 
   const isDeclined = state.screenState.screen === 'declined';
   const isSuccess  = state.screenState.screen === 'success';

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { CalendarCheck, Menu, X, Sun, Moon } from 'lucide-react';
+import { Menu, X, Sun, Moon } from 'lucide-react';
 import { NavModals, type ModalId } from './NavModals';
 import { useTheme } from '../../hooks/useTheme';
+import { Logo } from '../ui/Logo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nav link config — label → modal id mapping
@@ -71,10 +72,8 @@ export function Navbar() {
     <>
       <header className="navbar">
         {/* ── Logo ──────────────────────────────────────────────────────── */}
-        <a href="/" className="flex items-center gap-2.5 select-none group">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-brand-600 text-white shadow-lg shadow-brand-600/30 group-hover:bg-brand-500 transition-colors">
-            <CalendarCheck className="w-4 h-4" strokeWidth={2.5} />
-          </span>
+        <a href="/" className="flex items-center gap-2.5 select-none">
+          <Logo className="w-8 h-8 flex-shrink-0" />
           <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
             Reserve<span className="text-brand-600 dark:text-brand-400">AI</span>
           </span>
