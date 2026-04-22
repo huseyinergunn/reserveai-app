@@ -15,5 +15,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0"
   }
 }
