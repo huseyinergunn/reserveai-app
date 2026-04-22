@@ -385,7 +385,11 @@ export function AdminDashboard() {
   // ── Single action ─────────────────────────────────────────────────────────
 
   async function handleAction(id: string, action: 'approve' | 'reject' | 'cancel' | 'complete') {
-    if (!adminKey) return;
+    if (!adminKey) {
+      console.warn('[AdminDashboard] handleAction: adminKey yok, işlem iptal.');
+      return;
+    }
+    console.log(`[AdminDashboard] handleAction: ${action} → id=${id}`);
     setActionState({ ids: [id], action });
     setActionError('');
     try {
@@ -393,9 +397,11 @@ export function AdminDashboard() {
       else if (action === 'reject')   await adminApi.reject(adminKey, id);
       else if (action === 'cancel')   await adminApi.cancel(adminKey, id);
       else                            await adminApi.complete(adminKey, id);
-      setTimeout(() => loadData(adminKey, true), 1800);
+      console.log(`[AdminDashboard] ${action} başarılı, liste yenileniyor…`);
+      await loadData(adminKey, true);
     } catch (err: unknown) {
       const e = err as { error?: string };
+      console.error(`[AdminDashboard] ${action} hatası:`, e);
       setActionError(e.error ?? 'İşlem başarısız oldu.');
     } finally {
       setActionState(null);

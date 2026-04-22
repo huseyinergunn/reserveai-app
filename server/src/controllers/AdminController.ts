@@ -54,38 +54,52 @@ export class AdminController {
     if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
     if (doc.status !== 'pending') { res.status(409).json({ error: `Already ${doc.status}.` }); return; }
 
-    const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
-    const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
-    }).format(new Date(doc.dateTime));
+    try {
+      // 1. Takvim etkinliği oluştur
+      const appointment = await this.deps.calendarService.createAppointment({
+        name: doc.name, email: doc.email, startTime: doc.dateTime,
+        enquirySummary: doc.enquirySummary, originalEnquiry: doc.enquiry,
+      });
 
-    if (this.deps.n8nApprovalWebhookUrl) {
+      // 2. DB güncelle
+      doc.status          = 'approved';
+      doc.calendarEventId = appointment.id;
+      await doc.save();
+
       const docId     = (doc._id as { toString(): string }).toString();
       const cancelUrl = `${this.deps.appBaseUrl}/api/approval/cancel/${doc.cancellationToken}`;
-      const n8nBase   = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
-      const params    = new URLSearchParams({
-        action: 'approve', id: docId, name: doc.name, email: doc.email,
-        dateTime: doc.dateTime, dateTimeDisplay, cancelUrl,
-      });
-      fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-        .catch((err) => logger.error('[AdminController] n8n approve webhook failed:', err));
-      res.status(200).json({ status: 'processing' });
-    } else {
-      try {
-        const appointment = await this.deps.calendarService.createAppointment({
-          name: doc.name, email: doc.email, startTime: doc.dateTime,
-          enquirySummary: doc.enquirySummary, originalEnquiry: doc.enquiry,
+
+      // 3. Kullanıcıya onay emaili gönder (fire-and-forget)
+      this.deps.mailService.sendApprovalConfirmation({
+        name:           doc.name,
+        email:          doc.email,
+        dateTime:       doc.dateTime,
+        cancelUrl,
+        conferenceLink: appointment.conferenceLink,
+      }).catch((err) => logger.error('[AdminController] Confirmation email failed:', err));
+
+      // 4. n8n'e bildir (sadece Sheets güncellemesi için, fire-and-forget)
+      if (this.deps.n8nApprovalWebhookUrl) {
+        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+        }).format(new Date(doc.dateTime));
+        const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
+        const params  = new URLSearchParams({
+          action: 'approve', id: docId, name: doc.name, email: doc.email,
+          dateTime: doc.dateTime, dateTimeDisplay, cancelUrl,
+          calendarEventId: appointment.id ?? '',
         });
-        doc.status          = 'approved';
-        doc.calendarEventId = appointment.id;
-        await doc.save();
-        logger.info(`[AdminController] Approved ${doc.bookingReference}`);
-        res.status(200).json({ status: 'approved' });
-      } catch (err) {
-        logger.error('[AdminController] Direct approve failed:', err);
-        res.status(502).json({ error: 'Failed to create calendar event.' });
+        fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
+          .catch((err) => logger.warn('[AdminController] n8n notify failed (non-fatal):', err));
       }
+
+      logger.info(`[AdminController] Approved ${doc.bookingReference} — event ${appointment.id}`);
+      res.status(200).json({ status: 'approved', calendarEventId: appointment.id });
+    } catch (err) {
+      logger.error('[AdminController] Approve failed:', err);
+      res.status(502).json({ error: 'Takvim etkinliği oluşturulamadı. Lütfen Google Calendar bağlantısını kontrol edin.' });
     }
   };
 
@@ -99,33 +113,38 @@ export class AdminController {
     if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
     if (doc.status !== 'pending') { res.status(409).json({ error: `Already ${doc.status}.` }); return; }
 
-    const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
-    const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
-    }).format(new Date(doc.dateTime));
-
-    if (this.deps.n8nApprovalWebhookUrl) {
-      const docId   = (doc._id as { toString(): string }).toString();
-      const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
-      const params  = new URLSearchParams({
-        action: 'reject', id: docId, name: doc.name, email: doc.email,
-        dateTime: doc.dateTime, dateTimeDisplay,
+    try {
+      // 1. Ret emaili gönder
+      await this.deps.mailService.sendRejection({
+        name: doc.name, email: doc.email, dateTime: doc.dateTime,
       });
-      fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-        .catch((err) => logger.error('[AdminController] n8n reject webhook failed:', err));
-      res.status(200).json({ status: 'processing' });
-    } else {
-      try {
-        await this.deps.mailService.sendRejection({ name: doc.name, email: doc.email, dateTime: doc.dateTime });
-        doc.status = 'rejected';
-        await doc.save();
-        logger.info(`[AdminController] Rejected ${doc.bookingReference}`);
-        res.status(200).json({ status: 'rejected' });
-      } catch (err) {
-        logger.error('[AdminController] Direct reject failed:', err);
-        res.status(502).json({ error: 'Failed to send rejection email.' });
+
+      // 2. DB güncelle
+      doc.status = 'rejected';
+      await doc.save();
+
+      // 3. n8n'e bildir (fire-and-forget)
+      if (this.deps.n8nApprovalWebhookUrl) {
+        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+        }).format(new Date(doc.dateTime));
+        const docId   = (doc._id as { toString(): string }).toString();
+        const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
+        const params  = new URLSearchParams({
+          action: 'reject', id: docId, name: doc.name, email: doc.email,
+          dateTime: doc.dateTime, dateTimeDisplay,
+        });
+        fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
+          .catch((err) => logger.warn('[AdminController] n8n notify failed (non-fatal):', err));
       }
+
+      logger.info(`[AdminController] Rejected ${doc.bookingReference}`);
+      res.status(200).json({ status: 'rejected' });
+    } catch (err) {
+      logger.error('[AdminController] Reject failed:', err);
+      res.status(502).json({ error: 'Ret emaili gönderilemedi. Lütfen Gmail bağlantısını kontrol edin.' });
     }
   };
 

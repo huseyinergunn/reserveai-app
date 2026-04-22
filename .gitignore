@@ -33,3 +33,7 @@ desktop.ini
 
 # ── Test Coverage ────────────────────────────────────────────────────────────
 coverage/
+
+get-refresh-token.mjs
+server/scripts/get-refresh-token.mjs
+.env
