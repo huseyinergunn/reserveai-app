@@ -13,9 +13,9 @@ import { createServer } from 'http';
 import { google } from 'googleapis';
 
 // ── Buraya yeni credentials'ı gir ──────────────────────────────────────────
-const CLIENT_ID = process.env.GMAIL_CLIENT_ID;
-const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
-const REDIRECT_URI  = 'http://127.0.0.1:4000/oauth/callback';
+const CLIENT_ID = '146653431453-sbakbejlelcut90aihggol3hqqqnes4o.apps.googleusercontent.com';
+const CLIENT_SECRET = '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'; // Yeni Secret'ın
+const REDIRECT_URI = 'https://developers.google.com/oauthplayground';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',

@@ -629,10 +629,10 @@ export function AdminDashboard() {
                 Bu filtre için randevu bulunamadı.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-22rem)]">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="inset-deep border-b border-slate-200 dark:border-slate-700/50">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="inset-deep border-b border-slate-200 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm">
                       {/* Select all */}
                       <th className="w-10 pl-5 py-3">
                         <button
