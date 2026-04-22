@@ -2,12 +2,14 @@ import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { CalendarService } from '../services/calendar/CalendarService';
 import type { MailService } from '../services/mail/MailService';
+import type { SheetsService } from '../services/sheets/SheetsService';
 import { AppointmentModel } from '../models/Appointment';
 import { logger } from '../utils/logger';
 
 interface Deps {
   calendarService:           CalendarService;
   mailService:               MailService;
+  sheetsService?:            SheetsService;
   n8nApprovalWebhookUrl:     string | undefined;
   n8nCancellationWebhookUrl: string | undefined;
   appBaseUrl:                string;
@@ -78,7 +80,13 @@ export class AdminController {
         conferenceLink: appointment.conferenceLink,
       }).catch((err) => logger.error('[AdminController] Confirmation email failed:', err));
 
-      // 4. n8n'e bildir (sadece Sheets güncellemesi için, fire-and-forget)
+      // 4. Google Sheets güncelle (fire-and-forget)
+      this.deps.sheetsService?.updateRow(docId, {
+        status:          'approved',
+        calendarEventId: appointment.id ?? '',
+      }).catch((err) => logger.warn('[AdminController] Sheets approve update failed (non-fatal):', err));
+
+      // 5. n8n'e bildir (sadece audit için, fire-and-forget)
       if (this.deps.n8nApprovalWebhookUrl) {
         const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
         const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
@@ -123,14 +131,19 @@ export class AdminController {
       doc.status = 'rejected';
       await doc.save();
 
-      // 3. n8n'e bildir (fire-and-forget)
+      // 3. Google Sheets güncelle (fire-and-forget)
+      const docId = (doc._id as { toString(): string }).toString();
+      this.deps.sheetsService?.updateRow(docId, {
+        status: 'rejected',
+      }).catch((err) => logger.warn('[AdminController] Sheets reject update failed (non-fatal):', err));
+
+      // 4. n8n'e bildir (fire-and-forget)
       if (this.deps.n8nApprovalWebhookUrl) {
         const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
         const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
           day: 'numeric', month: 'long', year: 'numeric',
           hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
         }).format(new Date(doc.dateTime));
-        const docId   = (doc._id as { toString(): string }).toString();
         const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
         const params  = new URLSearchParams({
           action: 'reject', id: docId, name: doc.name, email: doc.email,
