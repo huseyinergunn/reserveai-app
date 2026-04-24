@@ -45,10 +45,22 @@ const MODALS: Record<FooterModal, { icon: React.ElementType; title: string; body
     ),
   },
   terms: {
-    icon:  FileText,
+    icon: FileText,
     title: 'Kullanım Şartları',
     body: (
-      <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+      <div 
+        className="space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-h-[60vh] overflow-y-auto"
+        style={{ 
+          scrollbarWidth: 'none',      /* Firefox için */
+          msOverflowStyle: 'none',     /* IE ve Edge için */
+          WebkitOverflowScrolling: 'touch' 
+        }}
+      >
+        {/* Webkit (Chrome, Safari) için gizleme stili */}
+        <style dangerouslySetInnerHTML={{__html: `
+          div::-webkit-scrollbar { display: none; }
+        `}} />
+
         <p>
           <strong className="text-slate-800 dark:text-white">Hizmet Kapsamı:</strong>{' '}
           ReserveAI, randevu talepleri için bir aracı platform sunar. Hizmet; yapay
