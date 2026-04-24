@@ -21,9 +21,10 @@ function ThemeToggle() {
 
 export function PortalPage() {
   return (
-    <div className="min-h-screen flex-1 page-bg flex flex-col items-center justify-center px-4 py-10 relative">
+    <div className="min-h-screen flex-1 page-bg flex flex-col items-center justify-center px-4 py-8 relative">
       <ResultBanner />
       <ThemeToggle />
+      <div className="flex flex-col items-center w-full">
 
       {/* Brand */}
       <div className="flex items-center gap-3 mb-10 select-none animate-fade-in">
@@ -147,10 +148,11 @@ export function PortalPage() {
         </a>
       </div>
 
-      {/* Footer note */}
-      <div className="mt-10 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 animate-fade-in">
-        <Shield className="w-3.5 h-3.5" />
-        Güvenli ve şifreli bağlantı · ReserveAI © {new Date().getFullYear()}
+        {/* Footer note */}
+        <div className="mt-8 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 animate-fade-in">
+          <Shield className="w-3.5 h-3.5" />
+          Güvenli ve şifreli bağlantı · ReserveAI © {new Date().getFullYear()}
+        </div>
       </div>
     </div>
   );

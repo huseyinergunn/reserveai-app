@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Bot, CalendarCheck, Zap, Sparkles, CheckCircle2, Clock,
   Mail, Search, AlertTriangle,
-  Shield, Star, ArrowRight, Home,
+  Shield, Star, Home,
 } from 'lucide-react';
 import { Navbar }           from '../layout/Navbar';
 import { Footer }           from '../layout/Footer';
@@ -53,37 +53,35 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Booking form (needs to be inside AppointmentProvider)
+// Booking form inline (inside glass card — no form-card wrapper)
 // ---------------------------------------------------------------------------
 
-function BookingTabContent() {
+function BookingFormInline() {
   const { state } = useAppointment();
   const { screenState } = state;
   const isFormFlow = screenState.screen === 'form';
 
   return (
-    <div className="px-3 sm:px-4 py-8 flex justify-center">
-      <div id="booking-form-card" className="form-card w-full">
-        {isFormFlow && <StepIndicator currentStep={screenState.step} />}
-        {screenState.screen === 'form' && screenState.step === 1 && <Step1 />}
-        {screenState.screen === 'form' && screenState.step === 2 && <Step2 />}
-        {screenState.screen === 'form' && screenState.step === 3 && <Step3 />}
-        {screenState.screen === 'declined' && <DeclineScreen />}
-        {screenState.screen === 'success'  && <SuccessScreen summary={screenState.summary} />}
-      </div>
-    </div>
+    <>
+      {isFormFlow && <StepIndicator currentStep={screenState.step} />}
+      {screenState.screen === 'form' && screenState.step === 1 && <Step1 />}
+      {screenState.screen === 'form' && screenState.step === 2 && <Step2 />}
+      {screenState.screen === 'form' && screenState.step === 3 && <Step3 />}
+      {screenState.screen === 'declined' && <DeclineScreen />}
+      {screenState.screen === 'success'  && <SuccessScreen summary={screenState.summary} />}
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Status check tab
+// Status check inline (inside glass card — no form-card wrapper)
 // ---------------------------------------------------------------------------
 
-function StatusTabContent() {
-  const [email, setEmail]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<AppointmentStatusItem[] | null>(null);
-  const [error, setError]     = useState('');
+function StatusFormInline() {
+  const [email, setEmail]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [results, setResults]   = useState<AppointmentStatusItem[] | null>(null);
+  const [error, setError]       = useState('');
   const [searched, setSearched] = useState(false);
 
   async function handleSearch(e: React.FormEvent) {
@@ -108,94 +106,92 @@ function StatusTabContent() {
   }
 
   return (
-    <div className="px-3 sm:px-4 py-8 flex justify-center">
-      <div className="form-card w-full space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <div className="w-12 h-12 rounded-2xl bg-brand-500/15 border border-brand-300 dark:border-brand-500/30 flex items-center justify-center">
-              <Search className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-            </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-brand-500/15 border border-brand-300 dark:border-brand-500/30 flex items-center justify-center">
+            <Search className="w-6 h-6 text-brand-600 dark:text-brand-400" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Randevum Ne Durumda?</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            E-posta adresinizi girerek tüm randevularınızın güncel durumunu görün.
-          </p>
         </div>
-
-        {/* Search form */}
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="relative flex-1">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              placeholder="ornek@email.com"
-              className={`form-input pl-9 ${error ? 'form-input-error' : ''}`}
-              disabled={loading}
-            />
-          </div>
-          <Button type="submit" disabled={loading} loading={loading} className="flex-shrink-0">
-            {!loading && <Search className="w-4 h-4" />}
-            Sorgula
-          </Button>
-        </form>
-
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            {error}
-          </p>
-        )}
-
-        {/* Results */}
-        {searched && results !== null && (
-          results.length === 0 ? (
-            <div className="text-center py-8 space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto">
-                <CalendarCheck className="w-6 h-6 text-slate-400" />
-              </div>
-              <p className="font-medium text-slate-600 dark:text-slate-400">Randevu bulunamadı</p>
-              <p className="text-sm text-slate-400">Bu e-posta adresiyle kayıtlı randevunuz yok.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {results.length} randevu bulundu
-              </p>
-              {results.map((apt) => (
-                <div
-                  key={apt._id}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700/50 inset-surface px-4 py-3.5 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{apt.name}</p>
-                      <p className="text-xs font-mono text-slate-400 mt-0.5">{apt.bookingReference}</p>
-                    </div>
-                    <StatusBadge status={apt.status} />
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                    <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                    {formatDisplayDateTime(apt.dateTime, TIMEZONE)}
-                  </div>
-                  {apt.status === 'pending' && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Randevunuz inceleme aşamasında. En kısa sürede e-posta ile bildirim alacaksınız.
-                    </p>
-                  )}
-                  {apt.status === 'approved' && (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      Randevunuz onaylandı. Takvim davetiyesi e-posta adresinize gönderildi.
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-        )}
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Randevum Ne Durumda?</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          E-posta adresinizi girerek tüm randevularınızın güncel durumunu görün.
+        </p>
       </div>
+
+      {/* Search form */}
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <div className="relative flex-1">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
+            placeholder="ornek@email.com"
+            className={`form-input pl-9 ${error ? 'form-input-error' : ''}`}
+            disabled={loading}
+          />
+        </div>
+        <Button type="submit" disabled={loading} loading={loading} className="flex-shrink-0">
+          {!loading && <Search className="w-4 h-4" />}
+          Sorgula
+        </Button>
+      </form>
+
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </p>
+      )}
+
+      {/* Results */}
+      {searched && results !== null && (
+        results.length === 0 ? (
+          <div className="text-center py-8 space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto">
+              <CalendarCheck className="w-6 h-6 text-slate-400" />
+            </div>
+            <p className="font-medium text-slate-600 dark:text-slate-400">Randevu bulunamadı</p>
+            <p className="text-sm text-slate-400">Bu e-posta adresiyle kayıtlı randevunuz yok.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {results.length} randevu bulundu
+            </p>
+            {results.map((apt) => (
+              <div
+                key={apt._id}
+                className="rounded-xl border border-slate-200 dark:border-slate-700/50 inset-surface px-4 py-3.5 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{apt.name}</p>
+                    <p className="text-xs font-mono text-slate-400 mt-0.5">{apt.bookingReference}</p>
+                  </div>
+                  <StatusBadge status={apt.status} />
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                  {formatDisplayDateTime(apt.dateTime, TIMEZONE)}
+                </div>
+                {apt.status === 'pending' && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Randevunuz inceleme aşamasında. En kısa sürede e-posta ile bildirim alacaksınız.
+                  </p>
+                )}
+                {apt.status === 'approved' && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    Randevunuz onaylandı. Takvim davetiyesi e-posta adresinize gönderildi.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -299,7 +295,28 @@ function TrustSection() {
 type Tab = 'booking' | 'status';
 
 export function LandingPage() {
-  const [tab, setTab] = useState<Tab>('booking');
+  const [tab, setTab]             = useState<Tab>('booking');
+  const [formFocused, setFormFocused] = useState(false);
+  const bookingAreaRef            = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onFocusIn(e: FocusEvent) {
+      if (bookingAreaRef.current?.contains(e.target as Node)) {
+        setFormFocused(true);
+      }
+    }
+    function onFocusOut(e: FocusEvent) {
+      if (!bookingAreaRef.current?.contains(e.relatedTarget as Node)) {
+        setFormFocused(false);
+      }
+    }
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  }, []);
 
   return (
     <div className="page-bg flex flex-col">
@@ -310,8 +327,8 @@ export function LandingPage() {
         onClick={() => { window.location.href = '/'; }}
         title="Ana Sayfaya Dön"
         aria-label="Ana Sayfaya Dön"
-        className="fixed bottom-8 right-6 z-[9999]
-                   flex items-center gap-2
+        className="fixed bottom-6 right-6 z-[9999]
+                   hidden lg:flex items-center gap-2
                    py-3 px-6 rounded-full
                    text-sm font-semibold text-white
                    bg-blue-600 hover:bg-blue-500
@@ -321,102 +338,129 @@ export function LandingPage() {
         style={{ boxShadow: '0 8px 32px rgba(37,99,235,0.55), 0 0 0 1px rgba(96,165,250,0.2)' }}
       >
         <Home className="w-4 h-4 flex-shrink-0" />
-        Ana Sayfa
+        <span className="hidden lg:inline">Ana Sayfa</span>
       </button>
       <Navbar />
 
-      {/* ── Hero ───────────────────────────────────────────────────────── */}
-      <section className="relative z-10 text-center px-4 pt-14 sm:pt-20 pb-10">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6
-                        border border-brand-500/30 bg-brand-500/10
-                        text-brand-700 dark:text-white text-xs font-semibold select-none">
-          <Sparkles className="w-3.5 h-3.5" />
-          Yapay Zeka Destekli · Ücretsiz Deneyin
-        </div>
+      {/* ── Hero + Form — Two Column ────────────────────────────────────── */}
+      <section
+        id="action-area"
+        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
 
-        {/* Headline */}
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-snug tracking-tight mb-4 pt-1
-                       text-slate-900 dark:text-white max-w-3xl mx-auto">
-          Randevunuzu{' '}
-          <span className="hero-gradient-text">Saniyeler İçinde</span>{' '}
-          Ayarlayın
-        </h1>
-
-        {/* Subtext */}
-        <p className="text-sm sm:text-base lg:text-lg max-w-lg mx-auto leading-relaxed mb-8
-                      text-slate-500 dark:text-slate-400">
-          Yapay zeka asistanımız mesajınızı anlayarak size en uygun zamanı önerir.
-          Hızlı, güvenli ve tamamen otomatik.
-        </p>
-
-        {/* CTA */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Button onClick={() => { setTab('booking'); document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' }); }}>
-            <CalendarCheck className="w-4 h-4" />
-            Hemen Randevu Al
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { setTab('status'); document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' }); }}
-          >
-            <Search className="w-4 h-4" />
-            Randevumu Sorgula
-          </Button>
-        </div>
-
-        {/* Feature pills */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-          {[
-            { icon: Bot,           text: 'AI destekli sınıflandırma' },
-            { icon: CalendarCheck, text: 'Akıllı tarih önerileri'    },
-            { icon: Zap,           text: 'Anında e-posta onayı'      },
-          ].map(({ icon: Icon, text }) => (
-            <div key={text}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                         bg-slate-100/80 dark:bg-white/5
-                         border border-slate-200 dark:border-white/10
-                         text-slate-500 dark:text-slate-400">
-              <Icon className="w-3.5 h-3.5 text-brand-500 dark:text-brand-400" />
-              {text}
+          {/* ── LEFT: Text content ── */}
+          <div className="flex flex-col gap-3 lg:gap-6 items-center lg:items-start text-center lg:text-left">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full self-start
+                            border border-brand-500/30 bg-brand-500/10
+                            text-brand-700 dark:text-white text-xs font-semibold select-none">
+              <Sparkles className="w-3.5 h-3.5" />
+              Yapay Zeka Destekli · Ücretsiz Deneyin
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Tab bar + interactive area ──────────────────────────────────── */}
-      <section id="action-area" className="relative z-10 px-4">
-        {/* Tab bar */}
-        <div className="flex justify-center mb-0">
-          <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50">
-            {([
-              { key: 'booking', label: 'Randevu Al',         icon: CalendarCheck },
-              { key: 'status',  label: 'Randevumu Sorgula',  icon: Search },
-            ] as { key: Tab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-                  ${tab === key
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            ))}
+            {/* Headline */}
+            <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black leading-[1.08] tracking-tight
+                           text-slate-900 dark:text-white">
+              Randevunuzu{' '}
+              <span className="hero-gradient-text">Saniyeler<br className="hidden sm:block" /> İçinde</span>{' '}
+              Ayarlayın
+            </h1>
+
+            {/* Subtext */}
+            <p className="text-sm lg:text-lg leading-relaxed text-slate-500 dark:text-slate-400 max-w-sm">
+              Yapay zeka asistanımız mesajınızı anlayarak size en uygun zamanı önerir.
+              Hızlı, güvenli ve tamamen otomatik.
+            </p>
+
+            {/* Feature pills — desktop only */}
+            <div className="hidden lg:flex flex-wrap gap-2">
+              {[
+                { icon: Bot,           text: 'AI destekli sınıflandırma' },
+                { icon: CalendarCheck, text: 'Akıllı tarih önerileri'    },
+                { icon: Zap,           text: 'Anında e-posta onayı'      },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                             bg-slate-100/80 dark:bg-white/5
+                             border border-slate-200 dark:border-white/10
+                             text-slate-500 dark:text-slate-400">
+                  <Icon className="w-3.5 h-3.5 text-brand-500 dark:text-brand-400" />
+                  {text}
+                </div>
+              ))}
+            </div>
+
+            {/* Trust mini-stats — desktop only */}
+            <div className="hidden lg:flex items-center gap-6 pt-2">
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">7/24</p>
+                <p className="text-xs text-slate-400 mt-0.5">Erişim</p>
+              </div>
+              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">~3s</p>
+                <p className="text-xs text-slate-400 mt-0.5">AI Analiz</p>
+              </div>
+              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">100%</p>
+                <p className="text-xs text-slate-400 mt-0.5">Güvenli</p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Tab content */}
-        {tab === 'booking' ? (
-          <AppointmentProvider>
-            <BookingTabContent />
-          </AppointmentProvider>
-        ) : (
-          <StatusTabContent />
-        )}
+          {/* ── RIGHT: Glassmorphism form card ── */}
+          <div className="relative">
+            {/* Ambient glow */}
+            <div className="absolute -inset-6 bg-brand-500/8 blur-3xl rounded-full pointer-events-none" />
+
+            {/* Card */}
+            <div className="relative rounded-3xl overflow-hidden
+                            bg-white/80 dark:bg-slate-900/80
+                            backdrop-blur-2xl
+                            border border-white/60 dark:border-white/10
+                            shadow-[0_8px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
+
+              {/* Inline tab header */}
+              <div className="flex border-b border-slate-200/80 dark:border-white/10">
+                {([
+                  { key: 'booking', label: 'Randevu Al',        icon: CalendarCheck },
+                  { key: 'status',  label: 'Randevumu Sorgula', icon: Search },
+                ] as { key: Tab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTab(key)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold
+                                transition-all border-b-2 -mb-px
+                                ${tab === key
+                                  ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                                  : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                                }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              <div className="px-6 pt-6 pb-8 sm:p-8">
+                {tab === 'booking' ? (
+                  <AppointmentProvider>
+                    <div ref={bookingAreaRef}>
+                      <BookingFormInline />
+                    </div>
+                  </AppointmentProvider>
+                ) : (
+                  <StatusFormInline />
+                )}
+              </div>
+            </div>
+          </div>
+
+        </div>
       </section>
 
       {/* ── How it works ────────────────────────────────────────────────── */}
@@ -426,7 +470,9 @@ export function LandingPage() {
       <TrustSection />
 
       <Footer />
-      <CustomerChat />
+      <div className={formFocused ? 'hidden' : ''}>
+        <CustomerChat />
+      </div>
     </div>
   );
 }

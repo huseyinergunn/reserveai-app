@@ -292,7 +292,7 @@ export function CustomerChat() {
   const showInput = step === 'faq' || step === 'name' || step === 'email' || step === 'inquiry';
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-3">
+    <div className="fixed bottom-4 left-4 z-40 flex flex-col items-start gap-3">
 
       {/* Chat window */}
       {open && (
@@ -525,7 +525,7 @@ export function CustomerChat() {
       {/* Toggle button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`w-16 h-16 rounded-full shadow-xl text-white flex items-center justify-center
+        className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-xl text-white flex items-center justify-center
                     transition-all duration-200 hover:scale-110 active:scale-95
                     ${open
                       ? 'bg-slate-600 hover:bg-slate-700'
@@ -533,8 +533,8 @@ export function CustomerChat() {
         title={open ? 'Kapat' : 'Asistan'}
       >
         {open
-          ? <X className="w-6 h-6" />
-          : <MessageCircle className="w-6 h-6" />}
+          ? <X className="w-5 h-5 sm:w-6 sm:h-6" />
+          : <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
       </button>
     </div>
   );
