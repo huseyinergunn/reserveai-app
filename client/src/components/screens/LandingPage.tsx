@@ -22,6 +22,7 @@ import { TIMEZONE }             from '@shared/constants';
 import { ResultBanner }         from '../ui/ResultBanner';
 import { Button }               from '../ui/Button';
 import { CustomerChat }         from '../chat/CustomerChat';
+import { BentoCarousel }        from '../ui/BentoCarousel';
 
 // ---------------------------------------------------------------------------
 // Status badge helpers
@@ -345,69 +346,72 @@ export function LandingPage() {
       {/* ── Hero + Form — Two Column ────────────────────────────────────── */}
       <section
         id="action-area"
-        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12"
+        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-5 pb-3"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-10 items-start">
 
           {/* ── LEFT: Text content ── */}
-          <div className="flex flex-col gap-3 lg:gap-6 items-center lg:items-start text-center lg:text-left">
+          <div className="flex flex-col gap-2 lg:gap-3 items-center lg:items-start text-center lg:text-left">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full self-start
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full self-start
                             border border-brand-500/30 bg-brand-500/10
                             text-brand-700 dark:text-white text-xs font-semibold select-none">
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3 h-3" />
               Yapay Zeka Destekli · Ücretsiz Deneyin
             </div>
 
             {/* Headline */}
-            <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black leading-[1.08] tracking-tight
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-[1.08] tracking-tight
                            text-slate-900 dark:text-white">
               Randevunuzu{' '}
-              <span className="hero-gradient-text">Saniyeler<br className="hidden sm:block" /> İçinde</span>{' '}
+              <span className="hero-gradient-text">Saniyeler İçinde</span>{' '}
               Ayarlayın
             </h1>
 
             {/* Subtext */}
-            <p className="text-sm lg:text-lg leading-relaxed text-slate-500 dark:text-slate-400 max-w-sm">
+            <p className="text-xs lg:text-sm leading-relaxed text-slate-500 dark:text-slate-400 max-w-xs">
               Yapay zeka asistanımız mesajınızı anlayarak size en uygun zamanı önerir.
               Hızlı, güvenli ve tamamen otomatik.
             </p>
 
             {/* Feature pills — desktop only */}
-            <div className="hidden lg:flex flex-wrap gap-2">
+            <div className="hidden lg:flex flex-wrap gap-1.5">
               {[
                 { icon: Bot,           text: 'AI destekli sınıflandırma' },
                 { icon: CalendarCheck, text: 'Akıllı tarih önerileri'    },
                 { icon: Zap,           text: 'Anında e-posta onayı'      },
               ].map(({ icon: Icon, text }) => (
                 <div key={text}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium
                              bg-slate-100/80 dark:bg-white/5
                              border border-slate-200 dark:border-white/10
                              text-slate-500 dark:text-slate-400">
-                  <Icon className="w-3.5 h-3.5 text-brand-500 dark:text-brand-400" />
+                  <Icon className="w-3 h-3 text-brand-500 dark:text-brand-400" />
                   {text}
                 </div>
               ))}
             </div>
 
             {/* Trust mini-stats — desktop only */}
-            <div className="hidden lg:flex items-center gap-6 pt-2">
+            <div className="hidden lg:flex items-center gap-4">
               <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-white">7/24</p>
-                <p className="text-xs text-slate-400 mt-0.5">Erişim</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white">7/24</p>
+                <p className="text-[10px] text-slate-400">Erişim</p>
               </div>
-              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
+              <div className="w-px h-8 bg-slate-200 dark:bg-white/10" />
               <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-white">~3s</p>
-                <p className="text-xs text-slate-400 mt-0.5">AI Analiz</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white">~3s</p>
+                <p className="text-[10px] text-slate-400">AI Analiz</p>
               </div>
-              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
+              <div className="w-px h-8 bg-slate-200 dark:bg-white/10" />
               <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-white">100%</p>
-                <p className="text-xs text-slate-400 mt-0.5">Güvenli</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white">100%</p>
+                <p className="text-[10px] text-slate-400">Güvenli</p>
               </div>
             </div>
+
+            {/* Bento carousel — desktop only */}
+            <BentoCarousel />
           </div>
 
           {/* ── RIGHT: Glassmorphism form card ── */}
@@ -432,7 +436,7 @@ export function LandingPage() {
                     key={key}
                     type="button"
                     onClick={() => setTab(key)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold
                                 transition-all border-b-2 -mb-px
                                 ${tab === key
                                   ? 'border-brand-500 text-brand-600 dark:text-brand-400'
@@ -446,7 +450,7 @@ export function LandingPage() {
               </div>
 
               {/* Tab content */}
-              <div className="px-6 pt-6 pb-8 sm:p-8">
+              <div className="px-5 pt-4 pb-6 sm:px-6 sm:pt-4 sm:pb-6">
                 {tab === 'booking' ? (
                   <AppointmentProvider>
                     <div ref={bookingAreaRef}>
