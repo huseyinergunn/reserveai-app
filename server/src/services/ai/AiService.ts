@@ -1,4 +1,4 @@
-import type { ClassificationResult, ExtractedAppointmentData } from '../../../../shared/types';
+import type { ClassificationResult, ExtractedAppointmentData, TriageResult } from '../../../../shared/types';
 
 /**
  * Abstract AI service contract.
@@ -35,4 +35,26 @@ export interface AiService {
     availableDates: string[],
     availableTimes: readonly string[],
   ): Promise<ExtractedAppointmentData>;
+
+  /**
+   * Triages the enquiry: urgency level, sentiment, clarity score, and
+   * a one-sentence Turkish admin summary. Used to route notifications
+   * and surface priority signals in the admin dashboard.
+   */
+  triageEnquiry(enquiry: string): Promise<TriageResult>;
+
+  /**
+   * Business analytics chat: answers a Turkish admin question using
+   * aggregated appointment data as context.
+   *
+   * @param context  JSON string with aggregated DB stats.
+   * @param question Free-text Turkish question from the admin.
+   */
+  analyzeAppointments(context: string, question: string): Promise<string>;
+
+  /**
+   * Customer-facing chat: answers FAQ and guides appointment booking.
+   * Uses a fixed business knowledge system prompt; stateless per call.
+   */
+  customerChat(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string>;
 }

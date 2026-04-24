@@ -29,7 +29,7 @@ export function DeclineScreen() {
       {/* E-posta butonu */}
       <a
         href="mailto:user@example.com"
-        className="btn-primary inline-flex w-full justify-center items-center gap-2"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full font-semibold shadow-md transition-all duration-200 px-5 py-2.5 text-sm bg-brand-600 hover:bg-brand-500 text-white hover:scale-105 active:scale-95"
       >
         <Mail className="w-4 h-4" />
         user@example.com adresine yaz

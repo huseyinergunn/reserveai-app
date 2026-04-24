@@ -5,6 +5,7 @@ import { LandingPage }     from './components/screens/LandingPage';
 import { ApprovalPage }    from './components/screens/ApprovalPage';
 import { AdminLogin }      from './components/screens/AdminLogin';
 import { AdminDashboard }  from './components/screens/AdminDashboard';
+import { PrivacyPage }     from './components/screens/PrivacyPage';
 import './index.css';
 
 // ---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ import './index.css';
 //   /admin/login      → AdminLogin
 //   /admin            → AdminLogin   (shortcut)
 //   /admin/dashboard  → AdminDashboard (session-gated)
+//   /gizlilik         → PrivacyPage  (gizlilik politikası)
 // ---------------------------------------------------------------------------
 
 const path          = window.location.pathname;
@@ -26,6 +28,7 @@ function resolveRoute(): React.ReactElement {
   if (path === '/admin/dashboard') return <AdminDashboard />;
   if (path.startsWith('/admin'))   return <AdminLogin />;
   if (path === '/randevu')         return <LandingPage />;
+  if (path === '/gizlilik')        return <PrivacyPage />;
   return <PortalPage />;
 }
 

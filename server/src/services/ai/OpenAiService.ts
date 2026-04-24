@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { DateTime } from 'luxon';
 import type { AiService } from './AiService';
-import type { ClassificationResult, ExtractedAppointmentData } from '../../../../shared/types';
+import type { ClassificationResult, ExtractedAppointmentData, TriageResult } from '../../../../shared/types';
 import { logger } from '../../utils/logger';
 
 export class OpenAiService implements AiService {
@@ -153,5 +153,20 @@ OUTPUT: valid JSON only — no markdown, no commentary.
       logger.warn('[OpenAiService] extractDateTime failed (non-fatal):', err);
       return { date: null, time: null, confidence: 'none', suggestionMessage: null };
     }
+  }
+
+  async triageEnquiry(_enquiry: string): Promise<TriageResult> {
+    logger.warn('[OpenAiService] triageEnquiry not implemented — returning defaults');
+    return { urgency: 'NORMAL', sentiment: 'NEUTRAL', clarity: 50, adminSummary: '', processedAt: new Date().toISOString() };
+  }
+
+  async analyzeAppointments(_context: string, _question: string): Promise<string> {
+    logger.warn('[OpenAiService] analyzeAppointments not implemented');
+    return 'Bu özellik OpenAI sağlayıcısında henüz desteklenmiyor.';
+  }
+
+  async customerChat(_messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
+    logger.warn('[OpenAiService] customerChat not implemented');
+    return 'Üzgünüm, şu an destek veremiyorum. Lütfen formu kullanarak randevu alın.';
   }
 }

@@ -8,7 +8,7 @@
  */
 
 import type { AiService } from './AiService';
-import type { ClassificationResult, ExtractedAppointmentData } from '../../../../shared/types';
+import type { ClassificationResult, ExtractedAppointmentData, TriageResult } from '../../../../shared/types';
 import { logger } from '../../utils/logger';
 
 export class GeminiService implements AiService {
@@ -41,5 +41,20 @@ export class GeminiService implements AiService {
   ): Promise<ExtractedAppointmentData> {
     logger.warn('[GeminiService] extractDateTime not implemented — returning nulls');
     return { date: null, time: null, confidence: 'none', suggestionMessage: null };
+  }
+
+  async triageEnquiry(_enquiry: string): Promise<TriageResult> {
+    logger.warn('[GeminiService] triageEnquiry not implemented — returning defaults');
+    return { urgency: 'NORMAL', sentiment: 'NEUTRAL', clarity: 50, adminSummary: '', processedAt: new Date().toISOString() };
+  }
+
+  async analyzeAppointments(_context: string, _question: string): Promise<string> {
+    logger.warn('[GeminiService] analyzeAppointments not implemented');
+    return 'Bu özellik Gemini sağlayıcısında henüz desteklenmiyor.';
+  }
+
+  async customerChat(_messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
+    logger.warn('[GeminiService] customerChat not implemented');
+    return 'Üzgünüm, şu an destek veremiyorum. Lütfen formu kullanarak randevu alın.';
   }
 }

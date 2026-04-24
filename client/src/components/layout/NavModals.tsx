@@ -30,6 +30,7 @@ import {
   Headphones,
   Users,
 } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -517,10 +518,10 @@ function ContactContent() {
             className="form-input resize-none" />
         </div>
 
-        <button type="submit" className="btn-primary w-full">
+        <Button type="submit" className="w-full">
           Mesaj Gönder
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </form>
 
       {/* Info — 2 cols */}

@@ -11,7 +11,7 @@ import {
   termsSchema,
   flattenZodErrors,
 } from '../validators/form.validator';
-import type { FormSubmission, ApprovalPayload } from '../../../shared/types';
+import type { FormSubmission, ApprovalPayload, TriageResult } from '../../../shared/types';
 import { logger } from '../utils/logger';
 import {
   AppointmentModel,
@@ -33,7 +33,7 @@ export class FormController {
 
   // Step 1 — enquiry submission + AI classification + date extraction
   submitEnquiry = async (req: Request, res: Response): Promise<void> => {
-    console.log('[FormController] Form received:', req.body);
+    logger.debug('[FormController] Form submit received');
     const parsed = initialFormSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(422).json({ errors: flattenZodErrors(parsed.error) });
@@ -87,7 +87,7 @@ export class FormController {
 
   // Step 3 — schedule + kick off async approval
   scheduleAppointment = async (req: Request, res: Response): Promise<void> => {
-    console.log('[DEBUG] scheduleAppointment Raw Request Body:', req.body);
+    logger.debug('[FormController] scheduleAppointment received');
     const parsed = dateTimeSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(422).json({ errors: flattenZodErrors(parsed.error) });
@@ -245,15 +245,23 @@ export class FormController {
           rejectUrl,
         });
 
-        // ── Phase 3: AI summarization + admin approval email ─────────────────
+        // ── Phase 3: AI summarization + triage + admin approval email ────────
         let enquirySummary = '';
-        try {
-          enquirySummary = await this.deps.aiService.summariseEnquiry(submission.enquiry);
-          doc.enquirySummary = enquirySummary;
-          await doc.save();
-        } catch (aiErr) {
-          logger.error('[FormController] AI summarisation failed (non-fatal):', aiErr);
-        }
+        let triage: TriageResult | undefined;
+
+        await Promise.allSettled([
+          this.deps.aiService.summariseEnquiry(submission.enquiry)
+            .then((s) => { enquirySummary = s; })
+            .catch((err) => logger.error('[FormController] AI summarisation failed (non-fatal):', err)),
+
+          this.deps.aiService.triageEnquiry(submission.enquiry)
+            .then((t) => { triage = t; })
+            .catch((err) => logger.error('[FormController] Triage failed (non-fatal):', err)),
+        ]);
+
+        doc.enquirySummary = enquirySummary;
+        if (triage) doc.triage = triage;
+        await doc.save();
 
         const payload: ApprovalPayload = {
           submissionId,
@@ -265,6 +273,7 @@ export class FormController {
           submittedAt:   submission.submittedAt,
           approvalToken,
           bookingReference,
+          triage,
         };
 
         await this.deps.mailService.sendApprovalRequest(payload);

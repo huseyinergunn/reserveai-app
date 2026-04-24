@@ -17,6 +17,13 @@ export interface IAppointmentDoc extends Document {
   cancellationToken:  string;   // 64-char hex, unique — used in cancel link
   bookingReference:   string;   // RSV-XXXXXX, unique — shown to user
   calendarEventId?:   string;   // Google Calendar event ID — stored after approval, used for deletion on cancel
+  triage?: {
+    urgency:      'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+    sentiment:    'POSITIVE' | 'NEUTRAL' | 'ANXIOUS' | 'FRUSTRATED';
+    clarity:      number;
+    adminSummary: string;
+    processedAt:  string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -36,6 +43,13 @@ const schema = new Schema<IAppointmentDoc>(
     cancellationToken:   { type: String, required: true, unique: true, index: true },
     bookingReference:    { type: String, required: true, unique: true },
     calendarEventId:     { type: String, default: null },
+    triage: {
+      urgency:      { type: String, enum: ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'] },
+      sentiment:    { type: String, enum: ['POSITIVE', 'NEUTRAL', 'ANXIOUS', 'FRUSTRATED'] },
+      clarity:      { type: Number },
+      adminSummary: { type: String },
+      processedAt:  { type: String },
+    },
   },
   { timestamps: true },
 );

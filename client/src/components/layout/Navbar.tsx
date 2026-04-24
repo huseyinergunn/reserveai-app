@@ -55,6 +55,17 @@ export function Navbar() {
   const closeModal = ()             =>  setActiveModal(null);
   const closeMobile = ()            =>  setMobileOpen(false);
 
+  const scrollToBooking = () => {
+    setMobileOpen(false);
+    const el = document.getElementById('action-area');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      // Landing page'de değilsek, oraya yönlendir
+      window.location.href = '/randevu';
+    }
+  };
+
   return (
     <>
       {/* ── Overlay — menü açıkken arka planı karart ──────────────────────── */}
@@ -98,8 +109,8 @@ export function Navbar() {
 
           <button
             type="button"
-            onClick={() => openModal('pricing')}
-            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg transition-colors shadow-md shadow-brand-600/30"
+            onClick={scrollToBooking}
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-full transition-all shadow-md shadow-brand-600/30 hover:scale-105 active:scale-95"
           >
             Randevu Al
           </button>
@@ -146,8 +157,8 @@ export function Navbar() {
             <div className="pt-1 pb-0.5">
               <button
                 type="button"
-                onClick={() => openModal('pricing')}
-                className="w-full px-4 py-3 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg transition-colors"
+                onClick={scrollToBooking}
+                className="w-full px-4 py-3 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-full transition-all hover:scale-105 active:scale-95"
               >
                 Randevu Al
               </button>

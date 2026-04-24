@@ -5,7 +5,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 
 import { logger } from './utils/logger';
-import { globalLimiter, formSubmitLimiter } from './middleware/rateLimiter';
+import { globalLimiter, formSubmitLimiter, chatLimiter, analyzeLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 
 import { createAiService } from './services/ai/AiServiceFactory';
@@ -19,10 +19,12 @@ import { DateValidator } from './validators/date.validator';
 import { FormController } from './controllers/FormController';
 import { ApprovalController } from './controllers/ApprovalController';
 import { AdminController } from './controllers/AdminController';
+import { ChatController } from './controllers/ChatController';
 
 import { createFormRouter } from './routes/form.routes';
 import { createApprovalRouter } from './routes/approval.routes';
 import { createAdminRouter } from './routes/admin.routes';
+import { createChatRouter } from './routes/chat.routes';
 
 // ---------------------------------------------------------------------------
 // Fail-fast env validation
@@ -42,8 +44,11 @@ function requireEnv(key: string): string {
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/smart-app';
 
-// CLIENT_URL virgülle ayrılmış birden fazla origin destekler
-// Örn: "https://smart-app-client.onrender.com,http://localhost:5173"
+if (!process.env.JWT_SECRET) {
+  process.stderr.write('\n\n❌ EKSİK DEĞİŞKEN: JWT_SECRET\n\n');
+  process.exit(1);
+}
+
 const allowedOrigins = (process.env.CLIENT_URL ?? 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim())
@@ -112,6 +117,7 @@ const approvalController = new ApprovalController({
 });
 
 const adminController = new AdminController({
+  aiService,
   calendarService,
   mailService,
   sheetsService,
@@ -137,7 +143,7 @@ const corsOptions = {
   origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials:    true,
   methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // preflight — tüm route'lara OPTIONS izni
@@ -145,10 +151,14 @@ app.use(express.json());           // JSON body parser — ROUTE'LARDAN ÖNCE
 app.use(express.urlencoded({ extended: true }));
 app.use(globalLimiter);
 
-// Routes
-app.use('/api/form',     formSubmitLimiter, createFormRouter(formController));
-app.use('/api/approval', createApprovalRouter(approvalController));
-app.use('/api/admin',    createAdminRouter(adminController));
+const chatController = new ChatController({ aiService });
+
+// Routes — specific limiters protect expensive AI endpoints
+app.use('/api/form',             formSubmitLimiter, createFormRouter(formController));
+app.use('/api/approval',                            createApprovalRouter(approvalController));
+app.use('/api/admin',                               createAdminRouter(adminController));
+app.use('/api/admin/analyze',    analyzeLimiter);   // stricter limit on the AI analysis endpoint
+app.use('/api/chat',             chatLimiter,        createChatRouter(chatController));
 
 app.get('/health', (_req, res) =>
   res.json({ status: 'ok', timestamp: new Date().toISOString() }),

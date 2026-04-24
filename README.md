@@ -10,12 +10,14 @@
 2. [Technology Stack](#2-technology-stack)
 3. [Architecture](#3-architecture)
 4. [Project Structure](#4-project-structure)
-5. [Environment Variables](#5-environment-variables)
-6. [Local Development](#6-local-development)
-7. [Deployment (Render)](#7-deployment-render)
-8. [Critical Technical Decisions](#8-critical-technical-decisions)
-9. [Security Model](#9-security-model)
-10. [Roadmap](#10-roadmap)
+5. [Design System](#5-design-system)
+6. [UX Improvements](#6-ux-improvements)
+7. [Environment Variables](#7-environment-variables)
+8. [Local Development](#8-local-development)
+9. [Deployment (Render)](#9-deployment-render)
+10. [Critical Technical Decisions](#10-critical-technical-decisions)
+11. [Security Model](#11-security-model)
+12. [Roadmap](#12-roadmap)
 
 ---
 
@@ -185,7 +187,127 @@ smart-app/
 
 ---
 
-## 5. Environment Variables
+## 5. Design System
+
+ReserveAI treats the UI as a first-class concern. All interactive elements share a single, token-driven design language defined in `client/src/index.css` (@layer components) and enforced through a reusable `Button` component.
+
+### 5.1 Component-Based Design
+
+#### `Button` — `client/src/components/ui/Button.tsx`
+
+A single typed component that covers every interactive call-to-action in the application:
+
+```tsx
+<Button variant="emerald" size="lg">Randevu Onayla</Button>
+<Button variant="sky"     loading={true}>Giriş Yap</Button>
+<Button variant="danger"  size="sm">İptal Et</Button>
+<Button variant="secondary">Geri Dön</Button>
+```
+
+| Prop | Values | Default |
+|------|--------|---------|
+| `variant` | `primary` · `emerald` · `sky` · `danger` · `secondary` | `primary` |
+| `size` | `sm` · `md` · `lg` | `md` |
+| `loading` | `boolean` | — |
+
+All other native `<button>` attributes (e.g. `onClick`, `disabled`, `type`) are forwarded as-is.
+
+#### Compact table-action buttons — `btn-action-*`
+
+Admin dashboard rows use a parallel set of CSS classes (`btn-action-emerald`, `btn-action-sky`, `btn-action-danger`, `btn-action-slate`) that share the same colour tokens but apply tighter padding suitable for data-dense tables.
+
+### 5.2 Visual Consistency — Token Map
+
+| Token | CSS class | Colour | Semantic role |
+|-------|-----------|--------|---------------|
+| Primary | `.btn-primary` | Brand blue (indigo-600) | General CTA |
+| Emerald | `.btn-emerald` | emerald-500 / 600 | Customer-facing · approval · next-step |
+| Sky | `.btn-sky` | sky-500 / 600 | Admin-facing · login · system actions |
+| Danger | `.btn-danger` | red-500 / 600 | Cancel · delete · reject |
+| Secondary | `.btn-secondary` | Theme-adaptive grey | Back · secondary action |
+
+### 5.3 Interaction Standards
+
+Every button variant enforces the same motion contract via the `.btn` base class:
+
+```css
+.btn {
+  border-radius: 9999px;   /* rounded-full — consistent pill shape */
+  box-shadow:    md;        /* visible depth at rest */
+  transition:    all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn:hover  { transform: scale(1.05); }  /* tactile lift on hover  */
+.btn:active { transform: scale(0.98); }  /* press-down feedback    */
+```
+
+Mobile text is always `text-center`; icon+label buttons use `gap-2` spacing so icons never crowd text at small sizes.
+
+### 5.4 Where Each Variant Appears
+
+| Screen | Variant used |
+|--------|-------------|
+| Landing page → Randevu Al CTA | `primary` (lg) |
+| Step 1–3 form submit buttons | `primary` (full-width) |
+| Step 2 T&C accept | `emerald` |
+| Admin login | `sky` |
+| Admin dashboard → Onayla | `btn-action-emerald` |
+| Admin dashboard → Reddet | `btn-action-danger` |
+| Admin dashboard → Tamamlandı | `btn-action-sky` |
+| Admin dashboard → İptal | `btn-action-slate` |
+| Modal / drawer → close | `secondary` |
+
+---
+
+## 6. UX Improvements
+
+### 6.1 Navbar "Randevu Al" — Smooth Scroll Fix
+
+The header CTA previously opened the pricing modal instead of navigating to the booking form. The fix uses a simple DOM lookup:
+
+```ts
+const scrollToBooking = () => {
+  const el = document.getElementById('action-area');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    window.location.href = '/randevu'; // fallback from other pages
+  }
+};
+```
+
+`scroll-padding-top: 64px` on `<html>` ensures the sticky navbar height is accounted for.
+
+### 6.2 Footer — Legal & Contact Modals
+
+Footer links previously pointed to `href="#"` (dead links). Each link now opens a themed modal panel built entirely from existing CSS variables (`--modal-bg`, `--modal-border`, `--inset-base`), requiring zero new CSS:
+
+| Link | Content |
+|------|---------|
+| Gizlilik Politikası | Data storage policy, Google API usage, deletion request flow |
+| Kullanım Şartları | Service scope, user responsibilities, cancellation policy |
+| İletişim | Support and info email addresses with business hours |
+
+The modal renders as a bottom sheet on mobile (`fixed inset-x-4 bottom-0`) and a centered dialog on sm+ screens (`sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2`), with a backdrop overlay and `animate-slide-up` entrance.
+
+### 6.3 Visual Centering
+
+| Component | Change |
+|-----------|--------|
+| `PortalPage` — Customer & Admin cards | Added `items-center text-center` to card flex containers; CTA rows use `justify-center` |
+| `LandingPage` — HowItWorks section | Card layout changed to `flex flex-col items-center text-center`; icon + step number stack vertically |
+
+### 6.4 Design Token Consistency
+
+All new interactive elements (footer modal close button, footer link buttons, navbar CTA) use the same token set as the rest of the UI:
+
+- `rounded-full` pill shape
+- `hover:scale-105 active:scale-95` motion contract
+- `shadow-md` depth at rest
+- `BTN_BASE` / `BTN_VARIANTS` from `Button.tsx` (no new CSS classes)
+
+---
+
+## 7. Environment Variables
 
 ### Backend (`server/.env`)
 
@@ -243,7 +365,7 @@ VITE_ADMIN_SECRET_KEY=...
 
 ---
 
-## 6. Local Development
+## 8. Local Development
 
 ```bash
 # 1. Install dependencies
@@ -266,7 +388,7 @@ The Vite dev server proxies `/api` requests to `localhost:3000` when `VITE_API_U
 
 ---
 
-## 7. Deployment (Render)
+## 9. Deployment (Render)
 
 The entire infrastructure is declared in `render.yaml` (Render Blueprint). A single `git push` to `main` triggers both services:
 
@@ -284,9 +406,9 @@ Render's free-tier Web Services spin down after 15 minutes of inactivity, causin
 
 ---
 
-## 8. Critical Technical Decisions
+## 10. Critical Technical Decisions
 
-### 8.1 `overflow: clip` on `.page-bg` — not `overflow: hidden`
+### 9.1 `overflow: clip` on `.page-bg` — not `overflow: hidden`
 
 The landing page uses decorative radial-gradient pseudo-elements (`::before`, `::after`) that intentionally extend outside the container (e.g., `bottom: -150px`) to create depth. Clipping them is necessary to prevent scrollable dead space below the footer.
 
@@ -303,7 +425,7 @@ The naive fix — `overflow: hidden` — creates a **Block Formatting Context (B
 }
 ```
 
-### 8.2 Mobile hamburger dropdown — `absolute` inside `sticky` header
+### 9.2 Mobile hamburger dropdown — `absolute` inside `sticky` header
 
 The initial implementation rendered the mobile dropdown in document flow, outside the `<header>`. When a user scrolled down and opened the menu, the sticky header sat at the top of the viewport but the dropdown rendered at the header's original scroll position — off-screen.
 
@@ -322,7 +444,7 @@ Moving the dropdown **inside** `<header>` as `position: absolute; top: 100%` tie
 
 A `fixed inset-0` overlay (`z-index: 999`) dims the rest of the page and closes the menu on tap-outside, following standard mobile UX patterns.
 
-### 8.3 Step-transition scroll — `useRef` guards against mount-time fire
+### 9.3 Step-transition scroll — `useRef` guards against mount-time fire
 
 The booking form is a three-step wizard. On each step transition the UI should scroll the form card into view. A naïve `useEffect(() => scrollIntoView(), [currentStep])` fires on **initial mount** (step 1 load), jerking the page down before the user interacts.
 
@@ -342,7 +464,7 @@ useEffect(() => {
 
 `scroll-padding-top: 64px` on `<html>` ensures `scrollIntoView` accounts for the sticky navbar height.
 
-### 8.4 AI provider strategy pattern
+### 9.4 AI provider strategy pattern
 
 The server never hard-codes an LLM provider. `AiServiceFactory.create()` returns a concrete implementation based on `process.env.AI_PROVIDER`:
 
@@ -354,17 +476,17 @@ AI_PROVIDER=gemini → GeminiService (gemini-1.5-flash)
 
 This allows cost/latency trade-offs to be made at deploy time with zero code changes, and enables A/B testing across providers without a feature-flag system.
 
-### 8.5 Gmail OAuth2 over SMTP password
+### 9.5 Gmail OAuth2 over SMTP password
 
 Nodemailer is configured with OAuth2 refresh-token credentials rather than a plain-text SMTP password. This eliminates the risk of credential leakage in logs or environment variable dumps, and survives Google's periodic "less secure app" policy tightening. The same OAuth2 credentials are reused for Google Calendar, minimising the number of secrets in rotation.
 
-### 8.6 Isomorphic Zod schemas via `@shared`
+### 9.6 Isomorphic Zod schemas via `@shared`
 
 Server-side validation and client-side form validation share identical Zod schemas from `shared/schemas.ts`. The Vite config maps `@shared` to `../../shared` at build time; the TypeScript `tsconfig.json` maps the same alias for the server. A schema change propagates to both surfaces with a single edit, making API contract drift structurally impossible.
 
 ---
 
-## 9. Security Model
+## 11. Security Model
 
 | Layer | Mechanism |
 |-------|-----------|
@@ -378,7 +500,7 @@ Server-side validation and client-side form validation share identical Zod schem
 
 ---
 
-## 10. Roadmap
+## 12. Roadmap
 
 ### Near-term
 

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { DateTime } from 'luxon';
 import { CalendarDays, Clock, User, Mail, AlertCircle, Sparkles, TriangleAlert } from 'lucide-react';
 import { useAppointment } from '../../hooks/useAppointment';
+import { Button } from '../ui/Button';
 import { step3Schema, type Step3Input, type Step3Values } from '../../validators/formSchema';
 import { TIME_SLOTS, TIMEZONE } from '@shared/constants';
 import { parseDateTimeFromForm } from '@shared/dateUtils';
@@ -298,25 +299,26 @@ export function Step3() {
       )}
 
       {/* Gönder */}
-      <button
+      <Button
         type="submit"
         disabled={isLoading || datesLoading || isSelectedTimeBooked}
-        className="btn-primary w-full animate-slide-up"
+        loading={isLoading}
+        className="w-full animate-slide-up"
         style={{ animationDelay: '400ms' }}
       >
-        {isLoading
-          ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
-              Gönderiliyor…
-            </span>
-          )
-          : 'Randevu İsteği Gönder →'
-        }
-      </button>
+        {isLoading ? 'Gönderiliyor…' : 'Randevu İsteği Gönder →'}
+      </Button>
+
+      <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 animate-slide-up" style={{ animationDelay: '480ms' }}>
+        Verileriniz{' '}
+        <a
+          href="/gizlilik"
+          className="underline underline-offset-2 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
+        >
+          Gizlilik Politikası
+        </a>
+        {' '}kapsamında korunmaktadır.
+      </p>
     </form>
   );
 }

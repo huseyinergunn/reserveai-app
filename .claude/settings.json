@@ -16,7 +16,12 @@
       "Bash(rmdir api/data)",
       "Bash(rmdir api:*)",
       "Bash(curl -s -X POST http://localhost:5678/webhook-test/appointments -H 'Content-Type: application/json' -d '{\"name\":\"Test User\",\"email\":\"test@example.com\",\"message\":\"Test mesaj\"}' -w '\\\\nHTTP Status: %{http_code}')",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(cat server/.gitignore)",
+      "Bash(cat client/.gitignore)",
+      "Bash(grep -rn \"gsk_\\\\|mongodb+srv\\\\|GOCSPX\\\\|1//04\\\\|admin-super-secret\\\\|db0246e4\" --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.json\" src server/src client/src)",
+      "Bash(grep -E \"\\\\.env$|\\\\.env\\\\.\")",
+      "Bash(git add *)"
     ]
   }
 }

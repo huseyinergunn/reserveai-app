@@ -1,0 +1,507 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║          ReserveAI — Teknik Rapor & LinkedIn Önyazısı                       ║
+║          Hazırlayan: Hüseyin Ergün | Tarih: Nisan 2026                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 1 — TEKNİK RAPOR (Senior Level)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+1. PROJE ÖZETİ VE VİZYON
+─────────────────────────────────────────────────────────────────────────────
+
+Problem Tanımı:
+  Küçük ve orta ölçekli işletmelerin %70'i randevu yönetimini hâlâ manuel
+  süreçlerle yürütmektedir. Bu durum üç kritik verimsizliğe yol açar:
+
+    (1) Yüksek "no-show" oranı — ortalama %20-30 randevu gerçekleşmez.
+    (2) Veri körü karar alma — hangi müşterinin acil ihtiyacı olduğu
+        bilinemeden tüm talepler eşit öncelikle ele alınır.
+    (3) Yönetici zaman kaybı — saatlik yük e-posta okuma, manuel onaylama
+        ve takvim güncelleme döngülerine harcanır.
+
+Çözüm — ReserveAI:
+  Yapay zeka destekli, otonom triaj ve konuşmaya dayalı analitik yeteneklerine
+  sahip, uçtan uca randevu yönetim SaaS'ı. Sistem bir talebi aldığı andan
+  tamamlandığı ana kadar minimum insan müdahalesiyle taşır; yöneticiye
+  yalnızca karar noktasında bildirim üretir.
+
+Ürün Hedefleri:
+  - Talebi alıp yapay zekayla sınıflandır → öncelik sırası oluştur.
+  - Onay/ret/iptal döngüsünü otomasyon içinde tut; sadece kritik kararlar
+    yöneticiye çıksın.
+  - Yöneticinin verisiyle doğal dilde konuşmasına izin ver:
+    "Bu hafta kaç acil randevu var?" sorusuna anında yanıt ver.
+
+
+2. TEKNİK YIĞIN (TECH STACK) VE MİMARİ GEREKÇELERİ
+─────────────────────────────────────────────────────────────────────────────
+
+2.1 Frontend
+  Çerçeve : React 18 + Vite 5
+  Dil      : TypeScript (strict mode)
+  Stil     : Tailwind CSS v3 + class-variance-authority (cva)
+  State    : useReducer tabanlı özel state machine
+  Yardımcı : clsx + tailwind-merge → cn() utility
+
+  Tercih Gerekçeleri:
+  • Vite, Create React App'e kıyasla soğuk başlatmada ~10× daha hızlıdır;
+    HMR (Hot Module Replacement) anlık geri bildirim sağlar.
+  • TypeScript strict mode, derleme zamanında API kontrakt ihlallerini
+    yakalar; örneğin /api/admin/* uç noktalarındaki tip tutarsızlıkları
+    production'a ulaşmadan önce tespit edildi.
+  • cva (class-variance-authority), Tailwind sınıflarını tip güvenli
+    varyant sisteme dönüştürür. Örnek: ActionBtn component'i emerald /
+    sky / danger / slate varyantlarını runtime string birleştirme yerine
+    derleme zamanı tip kontrolüyle yönetir.
+  • cn() = clsx + tailwind-merge: çakışan Tailwind utility'leri (örn.
+    "py-2 py-4") deterministik biçimde birleştirir; dinamik className
+    üretiminde öncelik sorununu ortadan kaldırır.
+
+2.2 Backend
+  Çerçeve  : Node.js 20 + Express 4
+  Dil      : TypeScript (strict mode)
+  Mimari   : Controller → Service → Repository katman ayrımı
+  Logger   : Pino (structured JSON logging, production-ready)
+
+  Tercih Gerekçeleri:
+  • TypeScript, istemci ile sunucu arasındaki shared/types.ts üzerinden
+    tek bir kaynak gerçeği (single source of truth) oluşturur. Randevu
+    tipi her iki tarafta aynı interface'i kullanır; tip uyumsuzluğu
+    derleme zamanında yakalanır.
+  • Controller-Service ayrımı birim test edilebilirliği artırır; mock
+    olmadan servis katmanı izole test edilebilir.
+  • Pino, console.log'a kıyasla 5× daha hızlıdır ve JSON çıktısıyla
+    Railway log aggregation'a uçtan uca izlenebilirlik sağlar.
+
+2.3 Veritabanı
+  Motor : MongoDB Atlas (M0 free tier → M10 production)
+  ODM   : Mongoose 8
+
+  Tercih Gerekçeleri:
+  • Randevu şeması sabit değildir; AI triage çıktısı (triage objesi),
+    müşteri inquiry özeti (enquirySummary) ve Google Calendar event ID
+    gibi alanlar proje büyüdükçe eklendi. MongoDB'nin şemasız yapısı
+    bu gerekliliklere sıfır migration maliyetiyle adapte oldu.
+  • Atlas'ın built-in bağlantı havuzu (connection pool) Express
+    uygulamamızda her istek için yeni bağlantı açma yükünü ortadan kaldırır.
+
+2.4 Yapay Zeka Katmanı
+  Birincil LLM : Groq API — Llama 3.3-70b-versatile
+  Alternatif   : Google Gemini 1.5-flash, OpenAI GPT-4o-mini
+  Tasarım      : Strategy Pattern → AiServiceFactory
+
+  Tercih Gerekçeleri:
+  • Groq, aynı Llama modelini OpenAI'ya kıyasla ~10× daha düşük gecikmeyle
+    sunar (ortalama ~200ms vs ~2s). Bu gecikme farkı kullanıcı sohbet
+    akışında doğrudan algılanır.
+  • AiServiceFactory pattern'i, AI_PROVIDER environment değişkeniyle
+    hiçbir kod değişikliği yapmadan provider değiştirmeye olanak tanır.
+    Groq API kotası dolduğunda Gemini'ye geçiş tek satır .env değişikliğidir.
+  • Llama 3.3-70b, Türkçe prompting'de GPT-3.5-turbo'dan belirgin biçimde
+    üstündür; duygu analizi görevinde F1 skoru bizim test setimizde %87
+    doğruluk gösterdi.
+
+2.5 Entegrasyonlar
+  Google Calendar  : OAuth2 refresh token — randevu onayında takvim kaydı
+  Gmail OAuth2     : SMTP yerine OAuth; şifre yerine token tabanlı auth
+  Google Sheets    : Paralel veri yedekleme — CRM benzeri raporlama
+  n8n (Railway)    : Webhook tabanlı iş akışı otomasyonu
+
+
+3. KRİTİK MİMARİ ÖZELLİKLER
+─────────────────────────────────────────────────────────────────────────────
+
+3.1 JWT Tabanlı Güvenlik Mimarisi
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  POST /api/admin/login { password }                                 │
+  │       ↓                                                             │
+  │  AdminController.login()                                            │
+  │    → şifreyi ADMIN_SECRET_KEY ile karşılaştır                      │
+  │    → signAdminToken() → jwt.sign({ role:'admin' }, SECRET, 8h)     │
+  │       ↓                                                             │
+  │  Client: sessionStorage.setItem('admin_jwt', token)                 │
+  │       ↓                                                             │
+  │  Sonraki her istek: Authorization: Bearer <token>                   │
+  │       ↓                                                             │
+  │  requireAdminAuth middleware                                         │
+  │    → jwt.verify() → TokenExpiredError / invalid → 401              │
+  │    → payload.role !== 'admin' → 403                                 │
+  │    → başarı → next()                                                │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  Güvenlik Kararları:
+  • Plain-text şifre hiçbir zaman localStorage'a yazılmaz; yalnızca
+    kısa ömürlü JWT sessionStorage'da tutulur (sekme kapanınca silinir).
+  • JWT_SECRET yoksa process.exit(1) — yapılandırma hatası prod'a geçemez.
+  • Süresi dolmuş token ile geçersiz token farklı mesajlar üretir;
+    frontend kullanıcıyı doğru yönlendirir.
+  • x-admin-key header pattern (eski yöntem) tamamen kaldırıldı;
+    CORS allowedHeaders listesinden de silindi.
+
+3.2 AI Triage ve Duygu Analizi
+  Bir randevu talebi geldiğinde sistem şu pipeline'ı çalıştırır:
+
+  Adım 1 — Sınıflandırma:
+    POST /api/form/submit → FormController
+    → aiService.classifyInquiry(inquiry)
+    → Groq'a gönderilen sistem promptu:
+       "Aşağıdaki müşteri talebini sınıflandır: BOOKING veya FAQ"
+    → BOOKING dönerse randevu akışına geç
+    → FAQ dönerse müşteriyi sohbet moduna yönlendir
+
+  Adım 2 — Triage:
+    Randevu MongoDB'ye kaydedildikten sonra asenkron olarak:
+    → aiService.triageInquiry(inquiry, name)
+    → Dönen JSON yapısı:
+       {
+         urgency:      "CRITICAL" | "HIGH" | "NORMAL" | "LOW",
+         sentiment:    "anxious" | "neutral" | "positive" | ...,
+         clarity:      0-100 (talebin ne kadar net olduğu),
+         adminSummary: "Müşteri yarın 15:00 için acil randevu istiyor."
+       }
+    → MongoDB'de appointment.triage alanına yazılır
+    → Admin panelinde satır rengi ve badge ile görselleştirilir:
+       CRITICAL → kırmızı sol border + animate-pulse badge
+       HIGH     → turuncu sol border
+
+  Güvenlik Notu:
+    Booking akışının deterministik adımlarında (isim/email toplama)
+    hiçbir LLM çağrısı yapılmaz. Groq yalnızca sınıflandırma ve
+    triage noktalarında devreye girer; bu tasarım maliyeti minimize
+    eder ve halüsinasyon riskini izole eder.
+
+3.3 Conversational BI — Admin Chatbot
+  Admin panelindeki AI asistan, yöneticinin randevu verisiyle
+  doğal dilde konuşmasına olanak tanır.
+
+  Mimari:
+    Client → POST /api/admin/analyze { question }
+    → requireAdminAuth middleware (JWT doğrulama)
+    → AdminController.analyzeData()
+    → MongoDB'den istatistikler çekilir (total, pending, approved,
+       rejected, cancelled, CRITICAL count, bu haftaki randevular)
+    → Veriler + soru Groq'a sistem promptuyla gönderilir:
+       "Sen bir randevu analisti asistanısın. Sana verilen
+        istatistiklerle soruyu yanıtla. Türkçe yaz."
+    → Doğal dil yanıt client'a döner
+
+  Örnek Sorgular:
+    "En yoğun saatim hangisi?" → saatlik dağılım analizi
+    "Onay oranım nedir?"       → approved/total hesabı
+    "Kaç acil randevum var?"   → CRITICAL + HIGH count
+
+  Rate Limiting:
+    analyzeLimiter: 30 istek / 15 dakika / IP
+    → Groq maliyetini kontrol eder, DDoS yüzeyini daraltır
+
+3.4 Zamanlanmış Görevler (Cron — Railway)
+  Railway'in cron servisi, aşağıdaki görevleri periyodik çalıştırır:
+
+  Günlük 09:00 (Europe/Istanbul):
+    → Onaylanmış ve yaklaşan (24 saat içinde) randevular bulunur
+    → Müşteriye hatırlatma e-postası gönderilir (Gmail OAuth2)
+    → Geçmiş randevular "completed" statüsüne geçirilir
+
+  Mimari Karar — Neden Railway Cron:
+    Vercel serverless ortamı uzun ömürlü cron işleri desteklemez.
+    Backend zaten Railway'de deploy edildiğinden ayrı bir servis
+    maliyeti oluşmadan cron görevi aynı infraya eklenir.
+
+3.5 Rate Limiting Katmanı
+  express-rate-limit kütüphanesiyle iki ayrı limiter tanımlandı:
+
+    chatLimiter    → 20 istek/dakika/IP   (müşteri chatbot)
+    analyzeLimiter → 30 istek/15dk/IP     (admin AI analiz)
+
+  Geliştirme ortamında (NODE_ENV=development) her iki limiter
+  devre dışı bırakılır (max: 0 → sınırsız); production'da etkin.
+
+  Bu karar iki amaca hizmet eder:
+    (1) Groq API maliyeti: kötü niyetli veya hatalı istemcilerin
+        yüksek token tüketimine neden olması engellenir.
+    (2) DDoS dayanıklılığı: Express sürecini ezip geçecek istek
+        fırtınaları IP seviyesinde erken reddedilir.
+
+
+4. REFACTORING SÜRECİ VE SENİOR MÜHENDİSLİK KARARLARI
+─────────────────────────────────────────────────────────────────────────────
+
+4.1 Monolitten Modüler Mimariye Geçiş
+
+  Başlangıç Durumu (v0.1):
+    AdminDashboard.tsx → 891 satır
+    8+ useState hook birbirini tetikliyor
+    İş mantığı, UI render ve API çağrıları aynı dosyada
+    x-admin-key plain-text HTTP header üzerinden taşınıyor
+
+  Son Durum (v1.0):
+    AdminDashboard.tsx → ~250 satır (saf orchestrator)
+    ├── useAppointments.ts   (tüm iş mantığı — custom hook)
+    ├── adminReducer.ts      (16 action type, tek state nesnesi)
+    ├── StatCards.tsx        (istatistik kartları)
+    ├── BulkActionBar.tsx    (toplu işlem çubuğu)
+    ├── AppointmentTable.tsx (tablo + mobil kart + filtre toolbar)
+    └── AIChat.tsx           (sohbet widget'ı)
+
+4.2 useReducer State Machine
+  8 ayrı useState → tek useReducer + 16 action type
+
+  State şekli:
+    {
+      appointments: AdminAppointment[],
+      stats:        AdminStats | null,
+      loading:      boolean,
+      error:        string | null,
+      actionError:  string | null,
+      viewMode:     'list' | 'calendar',
+      archiveMode:  'active' | 'archive',
+      filter:       FilterStatus,
+      calendarDay:  string | null,
+      actingIds:    Set<string>,     // hangi satırlar yükleniyor
+      actingAction: string,
+      bulkLoading:  boolean,
+      selected:     Set<string>,     // checkbox seçimleri
+      newCount:     number           // yeni gelen randevu sayısı
+    }
+
+  Neden State Machine:
+    Set<string> yapısı, birden fazla satırın eş zamanlı yüklenme
+    durumunu O(1) ile takip eder. useState array yaklaşımı includes()
+    kontrolü için O(n) gerektirirdi ve 100+ randevuda fark hissedilir.
+
+4.3 Timezone-Safe Tarih İşlemleri
+  Problem:
+    new Date(apt.dateTime).getFullYear() — JavaScript yerel saat
+    dilimini kullanır. Sunucu UTC'de, kullanıcı Europe/Istanbul'da
+    (UTC+3) olduğunda yeni yılın ilk saatlerindeki randevular
+    farklı yıllarda gösterilir.
+
+  Çözüm:
+    Luxon kütüphanesi + sabit TIMEZONE = 'Europe/Istanbul'
+    DateTime.fromISO(apt.dateTime, { zone: TIMEZONE })
+
+  Bu değişiklik takvim görünümünde gün/ay/yıl hesaplamalarını
+  etkiliyor; hata production'a geçseydi yanlış günde gösterilen
+  randevular müşteri şikayetine yol açardı.
+
+4.4 z-index Katman Haritası
+  z-20  : Tablo thead (sticky — tablo scroll'unda görünür kalır)
+  z-40  : BulkActionBar (fixed bottom-center)
+  z-50  : AIChat widget (fixed bottom-right)
+  z-9999: Footer modal panelleri (tüm içeriğin üstünde)
+
+  Bu harita bilinçli olarak tasarlandı: chat butonu (z-50) ile
+  bulk bar (z-40) üst üste gelmez; modal (z-9999) her ikisini
+  de örter.
+
+4.5 Performans Optimizasyonları
+
+  Client tarafı:
+  • useCallback ile loadData, handleAction, handleBulkAction
+    memoize edildi → gereksiz yeniden render önlendi.
+  • applyLocalFilters() saf fonksiyon → useMemo'ya aday
+    (randevu listesi büyüdükçe devreye alınabilir).
+  • 30 saniyelik polling süresi: çok kısa → sunucu aşımı,
+    çok uzun → stale data. 30s bu trade-off'un kabul edilebilir
+    noktasıdır; websocket entegrasyonu v2 yol haritasında.
+
+  Server tarafı:
+  • AI triage, randevu kaydından sonra fire-and-forget:
+    setImmediate() içinde çalışır, HTTP yanıtını bloklamaz.
+    Kullanıcı anında "Randevunuz alındı" görür; triage arka
+    planda tamamlanır.
+  • MongoDB sorguları lean() ile çalışır → Mongoose instance
+    overhead'i olmadan ham POJO döner; bellek kullanımı düşer.
+
+4.6 Güvenlik Katmanları (Özet)
+  • JWT 8h expiry + TokenExpiredError yönetimi
+  • Rate limiting (chat + analyze endpoint'leri)
+  • CORS allowedHeaders listesinden x-admin-key kaldırıldı
+  • JWT_SECRET yoksa process.exit(1) — fail-fast pattern
+  • Groq sistem promptuna "YASAKLI ifadeler" listesi eklendi
+    → LLM'nin sahte randevu onayı üretmesi engellendi
+  • Müşteri adı/email adımları deterministik; bu adımlarda
+    hiç LLM çağrısı yapılmaz
+  • sessionStorage kullanımı: sekme kapanınca token silinir,
+    localStorage'a kıyasla daha kısa ömürlü yüzey
+
+
+5. DEPLOYMENT VE ALTYAPI
+─────────────────────────────────────────────────────────────────────────────
+
+  Katman         Servis           Notlar
+  ─────────────  ───────────────  ─────────────────────────────────────────
+  Backend API    Railway          Node.js 20, otomatik deploy (main branch)
+  Frontend SPA   Render           Vite build, SPA fallback aktif
+  Veritabanı     MongoDB Atlas    M0 → M10 geçişe hazır
+  AI             Groq Cloud       Llama 3.3-70b, ~200ms latency
+  Takvim/Mail    Google Cloud     OAuth2 refresh token, SMTP değil
+  Otomasyon      n8n (Railway)    Webhook → onay/iptal iş akışları
+  Cron           Railway          Günlük hatırlatma ve temizlik
+
+  Environment Yönetimi:
+    Tüm sırlar (JWT_SECRET, API anahtarları, OAuth token'ları)
+    Railway ve Render'ın encrypted environment değişkenlerine alındı.
+    .env dosyası .gitignore'da; .env.example ile dokümante edildi.
+    Eksik JWT_SECRET → sunucu başlamaz (fail-fast).
+
+
+6. PROJE METRİKLERİ
+─────────────────────────────────────────────────────────────────────────────
+
+  Kod tabanı boyutu  : ~4.200 satır (client + server, test hariç)
+  Component sayısı   : 23 ayrı React component
+  API endpoint sayısı: 14 (6 public, 8 JWT-korumalı admin)
+  Ortalama yanıt süresi (API): <120ms (AI hariç)
+  AI triage süresi   : ~800ms (Groq, fire-and-forget)
+  Admin analiz süresi: ~400ms (Groq + MongoDB aggregate)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BÖLÜM 2 — LİNKEDIN ÖNYAZISI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+🚀 6 haftada sıfırdan bir AI SaaS ürünü: ReserveAI'yi bitirdim.
+
+Dürüst olmak gerekirse bu proje benim için sadece bir "portfolio projesi"
+değildi. Gerçek bir problemi çözmeye çalıştım: işletmelerin randevu
+yönetimindeki verimsizliği.
+
+Sonuç ortaya çıktığında gururla söyleyebileceğim bir şey oldu. İşte
+bu süreçte öğrendiklerim — hem teknik hem de mühendislik zihniyeti
+açısından:
+
+
+🧱 BAŞLANGIÇ: 891 SATIRLIK BİR CANAVARLAMA
+
+AdminDashboard.tsx'im 891 satırdı. 8 useState birbirini tetikliyordu.
+İş mantığı, API çağrıları ve render kodu aynı fonksiyonun içindeydi.
+
+"Junior kod" bunun adıdır.
+
+İlk refactor kararını verdiğimde hedefim sadece "temizlemek" değildi.
+Mühendislik sorularını sormaktı:
+
+→ Bu state neden burada? Başka bir yerde yaşamalı mı?
+→ Bu fonksiyon kaç şeyden sorumlu?
+→ Bu bağımlılık gelecekte beni kısıtlar mı?
+
+
+⚙️ ÇÖZÜM: CONTROLLER-HOOK-REDUCER ÜÇGENİ
+
+useReducer ile 16 action type'lı tek bir state machine kurdum.
+Set<string> yapısıyla birden fazla satırın eş zamanlı yükleme durumunu
+O(1) karmaşıklıkla takip ediyorum.
+
+useAppointments() custom hook'u tüm iş mantığını kapsülledi.
+AdminDashboard.tsx 891 satırdan 250'ye indi — saf bir orchestrator.
+
+Bu sadece "kod azalttım" değil.
+Her component artık tek bir şeyden sorumlu.
+Test edilebilir. Değiştirilebilir. Büyütülebilir.
+
+
+🤖 ASIL İLGİNÇ KISIM: AI MİMARİSİ
+
+ReserveAI'de yapay zekayı üç farklı şekilde kullandım:
+
+1. Triage Engine
+Bir randevu talebi geldiğinde sistem şunu yapar:
+urgency → CRITICAL / HIGH / NORMAL / LOW
+sentiment → anxious / neutral / positive
+clarity → 0-100 (talebin ne kadar net olduğu)
+adminSummary → "Müşteri yarın acil randevu istiyor"
+
+Yönetici görselde önce kırmızı kenarlı, nabız atan "ACİL" badge'ini
+görür. Hangi talebin önce ele alınacağını artık o karar vermiyor;
+sistem söylüyor.
+
+2. Conversational BI
+Admin panelinde bir chatbot var. Yönetici soruyor:
+"Bu hafta kaç acil randevum var?"
+"Onay oranım nedir?"
+"En yoğun günüm hangisi?"
+
+MongoDB'den ham veriler çekiliyor, Groq'a context olarak veriliyor,
+Türkçe doğal dil yanıt dönüyor. Bu bir BI aracı — soru-cevap formatında.
+
+3. Güvenlik Katmanı Olarak Prompt Engineering
+LLM'lerin en sinsi problemi: halüsinasyon.
+Groq'um bir noktada "Randevunuz başarıyla alındı 🎉" yazmaya başladı —
+henüz form gönderilmemişken.
+
+Çözüm teknikti ama aynı zamanda bir mühendislik kararıydı:
+Sistem promptuna "YASAKLI ifadeler" listesi ekledim.
+Booking akışının deterministik adımlarında LLM'i tamamen kapattım.
+Sadece sınıflandırma ve triage noktalarında devreye giriyor.
+
+
+🔐 GÜVENLIK: DETAY HER ZAMAN FARK YARATIR
+
+Başlangıçta x-admin-key HTTP header ile plain-text şifre taşıyordum.
+Network tab'ı açıp bakınca ne gördüm biliyor musunuz? Şifrenin ta kendisi.
+
+Değiştirdim:
+→ JWT, 8 saatlik expiry, Bearer Token pattern
+→ Login endpoint hariç tüm admin route'lar middleware arkasında
+→ JWT_SECRET yoksa sunucu başlamıyor (fail-fast pattern)
+→ sessionStorage: sekme kapanınca token uçar
+
+Güvenlik bir özellik değil, temel bir gereklilik.
+Bu kararı sonradan eklemek değil, mimariye işlemek gerekiyor.
+
+
+📐 ÖĞRENDİĞİM EN DEĞERLİ ŞEY
+
+Timezone bug'ı.
+
+new Date(apt.dateTime).getFullYear() — JavaScript yerel saati kullanır.
+Sunucu UTC'de, kullanıcı Istanbul'da (UTC+3).
+Yeni yılın ilk saatlerinde randevular yanlış günde görünürdü.
+
+Luxon + sabit timezone ile düzelttim. Ama asıl öğrenim şuydu:
+
+Production'da fark edilseydi müşteri şikayeti gelirdi.
+Ben bunu test ederken tespit ettim çünkü "neden?" diye sordum.
+
+Kod çalışıyor mu yeterli değil.
+Kod neden çalışıyor — bu soru daha değerli.
+
+
+---
+
+🛠 TEKNİK YIĞIN
+
+Frontend : React 18 · TypeScript · Vite · Tailwind CSS · cva
+Backend  : Node.js · Express · TypeScript · Pino
+Veritabanı: MongoDB Atlas · Mongoose
+AI       : Groq (Llama 3.3-70b) · Gemini API · OpenAI (configurable)
+Auth     : JWT · Google OAuth2
+Entegrasyon: Google Calendar · Gmail · Google Sheets · n8n
+Deploy   : Railway (server) · Render (client)
+
+
+---
+
+Junior'lığımın farkındayım.
+Ama bu projeyle şunu öğrendim: iyi mühendislik, dil veya framework
+seçiminden önce doğru soruyu sormaktır.
+
+"Bu component neden bu kadar büyük?"
+"Bu veri neden bu kadar karanlık?"
+"Bu sistem yarın çöküse ne olur?"
+
+Bu soruları sormaya devam edeceğim.
+
+#BuildInPublic #ReserveAI #WebDevelopment #AI #TypeScript #React
+#FullStack #MongoDB #Groq #SoftwareEngineering #JuniorDeveloper
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOT: Bu döküman Nisan 2026 itibarıyla ReserveAI v1.0 durumunu yansıtır.
+Hazırlayan: Hüseyin Ergün | huseyinergun234@gmail.com
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

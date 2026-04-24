@@ -59,7 +59,7 @@ export function PortalPage() {
         {/* Customer card */}
         <a
           href="/randevu"
-          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col gap-5 cursor-pointer
+          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
                      transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
@@ -90,7 +90,7 @@ export function PortalPage() {
           </div>
 
           {/* CTA */}
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400
+          <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400
                           group-hover:gap-2.5 transition-all duration-200">
             Devam Et
             <ArrowRight className="w-4 h-4" />
@@ -104,7 +104,7 @@ export function PortalPage() {
         {/* Admin card */}
         <a
           href="/admin/login"
-          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col gap-5 cursor-pointer
+          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
                      transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
@@ -135,7 +135,7 @@ export function PortalPage() {
           </div>
 
           {/* CTA */}
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 dark:text-brand-400
+          <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-brand-600 dark:text-brand-400
                           group-hover:gap-2.5 transition-all duration-200">
             Giriş Yap
             <ArrowRight className="w-4 h-4" />

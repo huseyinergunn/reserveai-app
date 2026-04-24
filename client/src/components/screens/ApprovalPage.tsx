@@ -7,6 +7,7 @@ import {
   CalendarCheck, User, Clock, FileText, Mail,
   CheckCircle2, XCircle, Loader2, AlertTriangle,
 } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 interface Props {
   token: string;
@@ -186,16 +187,16 @@ export function ApprovalPage({ token }: Props) {
         {/* Action buttons — hidden once already decided */}
         {!alreadyActed && (
           <div className="flex gap-3">
-            <button
+            <Button
+              variant="emerald"
               onClick={handleConfirm}
               disabled={actionLoading}
-              className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              loading={actionLoading}
+              className="flex-1"
             >
-              {actionLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <CheckCircle2 className="w-4 h-4" />}
+              {!actionLoading && <CheckCircle2 className="w-4 h-4" />}
               Confirm
-            </button>
+            </Button>
             <button
               onClick={handleDecline}
               disabled={actionLoading}

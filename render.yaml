@@ -70,6 +70,15 @@ services:
       - key: ADMIN_SECRET_KEY
         sync: false
 
+      - key: JWT_SECRET
+        sync: false
+
+      - key: GOOGLE_SHEETS_SPREADSHEET_ID
+        sync: false
+
+      - key: GOOGLE_SHEETS_NAME
+        sync: false
+
       - key: N8N_BASE
         sync: false
 
@@ -112,5 +121,6 @@ services:
       - key: VITE_API_URL
         value: https://smart-app-server-y5dh.onrender.com
 
+      # Render Dashboard > Environment'tan set et — buraya ASLA gerçek değer yazma
       - key: VITE_ADMIN_SECRET_KEY
-        value: admin-super-secret-2024
+        sync: false

@@ -7,6 +7,17 @@ node_modules/
 .env.*.local
 # .env.production kasıtlı commit edilir — sadece public URL içerir, sır yok
 
+# ── Credential & Key Files ───────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*-service-account.json
+*-credentials.json
+*-oauth.json
+serviceAccountKey.json
+credentials.json
+
 # ── Build Outputs ────────────────────────────────────────────────────────────
 dist/
 build/
@@ -36,4 +47,4 @@ coverage/
 
 get-refresh-token.mjs
 server/scripts/get-refresh-token.mjs
-.env
+generate-google-token.js

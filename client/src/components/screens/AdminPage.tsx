@@ -5,6 +5,7 @@ import {
   Eye, AlertTriangle,
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
+import { Button } from '../ui/Button';
 import { adminApi, type AdminAppointment, type AdminStats } from '../../services/api';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE } from '@shared/constants';
@@ -91,7 +92,7 @@ function LockScreen({ onAuth }: { onAuth: (key: string) => void }) {
     // No env key — verify against server with a test request
     setLoading(true);
     try {
-      await import('../../services/api').then(({ adminApi }) => adminApi.getStats(trimmed));
+      await import('../../services/api').then(({ adminApi }) => adminApi.getStats());
       onAuth(trimmed);
     } catch (err: unknown) {
       const e = err as { error?: string };
@@ -136,10 +137,9 @@ function LockScreen({ onAuth }: { onAuth: (key: string) => void }) {
               </p>
             )}
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60">
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          <Button type="submit" variant="sky" disabled={loading} loading={loading} className="w-full">
             {loading ? 'Doğrulanıyor…' : 'Giriş Yap'}
-          </button>
+          </Button>
         </form>
 
         {/* Debug hint — only in development */}
@@ -235,13 +235,13 @@ export function AdminPage() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
-  const loadData = useCallback(async (key: string, silent = false) => {
+  const loadData = useCallback(async (_key: string, silent = false) => {
     if (!silent) setLoading(true);
     setError('');
     try {
       const [{ appointments: apts }, statsData] = await Promise.all([
-        adminApi.getAppointments(key),
-        adminApi.getStats(key),
+        adminApi.getAppointments(),
+        adminApi.getStats(),
       ]);
       setAppointments(apts);
       setStats(statsData);
@@ -283,9 +283,9 @@ export function AdminPage() {
     setActionState({ id, action });
     setActionError('');
     try {
-      if (action === 'approve')      await adminApi.approve(adminKey, id);
-      else if (action === 'reject')  await adminApi.reject(adminKey, id);
-      else                           await adminApi.cancel(adminKey, id);
+      if (action === 'approve')      await adminApi.approve(id);
+      else if (action === 'reject')  await adminApi.reject(id);
+      else                           await adminApi.cancel(id);
 
       // Reload after short delay (n8n may need a moment to update DB)
       setTimeout(() => loadData(adminKey, true), 1800);

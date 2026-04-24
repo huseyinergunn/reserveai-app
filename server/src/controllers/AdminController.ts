@@ -3,10 +3,13 @@ import mongoose from 'mongoose';
 import type { CalendarService } from '../services/calendar/CalendarService';
 import type { MailService } from '../services/mail/MailService';
 import type { SheetsService } from '../services/sheets/SheetsService';
+import type { AiService } from '../services/ai/AiService';
 import { AppointmentModel } from '../models/Appointment';
 import { logger } from '../utils/logger';
+import { signAdminToken } from '../middleware/auth.middleware';
 
 interface Deps {
+  aiService:                 AiService;
   calendarService:           CalendarService;
   mailService:               MailService;
   sheetsService?:            SheetsService;
@@ -19,23 +22,41 @@ interface Deps {
 export class AdminController {
   constructor(private readonly deps: Deps) {}
 
-  private checkAuth(req: Request, res: Response): boolean {
-    const key = req.headers['x-admin-key'];
-    if (!key || key !== this.deps.adminSecretKey) {
-      res.status(401).json({ error: 'Unauthorized.' });
-      return false;
-    }
-    return true;
-  }
+  // ---------------------------------------------------------------------------
+  // Auth — POST /api/admin/login
+  // ---------------------------------------------------------------------------
 
-  getAppointments = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
+  /**
+   * Validates the admin password and returns a short-lived JWT.
+   * The client stores the JWT in sessionStorage and sends it as Bearer token.
+   * Plain-text password never leaves this handler — no `x-admin-key` pattern.
+   */
+  login = (req: Request, res: Response): void => {
+    const { password } = req.body as { password?: string };
+    if (!password?.trim()) {
+      res.status(400).json({ error: 'Şifre boş olamaz.' });
+      return;
+    }
+    if (password.trim() !== this.deps.adminSecretKey) {
+      // Generic message — don't reveal whether the key exists
+      res.status(401).json({ error: 'Şifre hatalı. Lütfen tekrar deneyin.' });
+      return;
+    }
+    const token = signAdminToken();
+    logger.info('[AdminController] Admin login successful');
+    res.status(200).json({ token });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Appointments
+  // ---------------------------------------------------------------------------
+
+  getAppointments = async (_req: Request, res: Response): Promise<void> => {
     const docs = await AppointmentModel.find({}).sort({ submittedAt: -1 }).lean();
     res.status(200).json({ appointments: docs });
   };
 
-  getStats = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
+  getStats = async (_req: Request, res: Response): Promise<void> => {
     const [total, approved, pending, rejected, cancelled] = await Promise.all([
       AppointmentModel.countDocuments(),
       AppointmentModel.countDocuments({ status: 'approved' }),
@@ -46,8 +67,73 @@ export class AdminController {
     res.status(200).json({ total, approved, pending, rejected, cancelled });
   };
 
+  // ---------------------------------------------------------------------------
+  // AI analytics
+  // ---------------------------------------------------------------------------
+
+  analyzeData = async (req: Request, res: Response): Promise<void> => {
+    const { question } = req.body as { question?: string };
+    if (!question?.trim()) {
+      res.status(400).json({ error: 'Soru boş olamaz.' });
+      return;
+    }
+
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [totalAll, totalLast7, statusDist, triageStats, hourGroups, recentDocs] = await Promise.all([
+        AppointmentModel.countDocuments(),
+        AppointmentModel.countDocuments({ submittedAt: { $gte: sevenDaysAgo } }),
+        AppointmentModel.aggregate<{ _id: string; count: number }>([
+          { $group: { _id: '$status', count: { $sum: 1 } } },
+        ]),
+        AppointmentModel.aggregate<{ _id: string; count: number }>([
+          { $match: { 'triage.urgency': { $exists: true } } },
+          { $group: { _id: '$triage.urgency', count: { $sum: 1 } } },
+        ]),
+        AppointmentModel.aggregate<{ _id: number; count: number }>([
+          { $match: { status: { $in: ['pending', 'approved', 'completed'] } } },
+          { $addFields: { hour: { $hour: { $dateFromString: { dateString: '$dateTime' } } } } },
+          { $group: { _id: '$hour', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 5 },
+        ]),
+        AppointmentModel.find({})
+          .sort({ submittedAt: -1 })
+          .limit(100)
+          .select('name email dateTime status bookingReference triage.adminSummary enquirySummary')
+          .lean(),
+      ]);
+
+      const context = JSON.stringify({
+        toplamRandevu:    totalAll,
+        son7GundeGelen:   totalLast7,
+        durumDagilimi:    Object.fromEntries(statusDist.map((s) => [s._id, s.count])),
+        aciliyetDagilimi: Object.fromEntries(triageStats.map((t) => [t._id, t.count])),
+        enYogunSaatler:   hourGroups.map((h) => ({ saat: `${h._id}:00`, randevu: h.count })),
+        sonRandevular:    recentDocs.map((a) => ({
+          isim:     a.name,
+          email:    a.email,
+          tarih:    a.dateTime,
+          durum:    a.status,
+          referans: a.bookingReference,
+          ozet:     a.enquirySummary || '',
+        })),
+      }, null, 2);
+
+      const answer = await this.deps.aiService.analyzeAppointments(context, question.trim());
+      res.status(200).json({ answer });
+    } catch (err) {
+      logger.error('[AdminController] analyzeData failed:', err);
+      res.status(500).json({ error: 'Analiz sırasında bir hata oluştu.' });
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Status mutations
+  // ---------------------------------------------------------------------------
+
   approveAppointment = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid appointment ID.' }); return;
@@ -57,13 +143,11 @@ export class AdminController {
     if (doc.status !== 'pending') { res.status(409).json({ error: `Already ${doc.status}.` }); return; }
 
     try {
-      // 1. Takvim etkinliği oluştur
       const appointment = await this.deps.calendarService.createAppointment({
         name: doc.name, email: doc.email, startTime: doc.dateTime,
         enquirySummary: doc.enquirySummary, originalEnquiry: doc.enquiry,
       });
 
-      // 2. DB güncelle
       doc.status          = 'approved';
       doc.calendarEventId = appointment.id;
       await doc.save();
@@ -71,39 +155,18 @@ export class AdminController {
       const docId     = (doc._id as { toString(): string }).toString();
       const cancelUrl = `${this.deps.appBaseUrl}/api/approval/cancel/${doc.cancellationToken}`;
 
-      // 3. Kullanıcıya onay emaili gönder (fire-and-forget)
       this.deps.mailService.sendApprovalConfirmation({
-        name:           doc.name,
-        email:          doc.email,
-        dateTime:       doc.dateTime,
-        cancelUrl,
-        conferenceLink: appointment.conferenceLink,
+        name: doc.name, email: doc.email, dateTime: doc.dateTime,
+        cancelUrl, conferenceLink: appointment.conferenceLink,
       }).catch((err) => logger.error('[AdminController] Confirmation email failed:', err));
 
-      // 4. Google Sheets güncelle (fire-and-forget)
       this.deps.sheetsService?.updateRow(docId, {
-        status:          'approved',
-        calendarEventId: appointment.id ?? '',
-      }).catch((err) => logger.warn('[AdminController] Sheets approve update failed (non-fatal):', err));
+        status: 'approved', calendarEventId: appointment.id ?? '',
+      }).catch((err) => logger.warn('[AdminController] Sheets approve failed (non-fatal):', err));
 
-      // 5. n8n'e bildir (sadece audit için, fire-and-forget)
-      if (this.deps.n8nApprovalWebhookUrl) {
-        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
-        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-          day: 'numeric', month: 'long', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
-        }).format(new Date(doc.dateTime));
-        const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
-        const params  = new URLSearchParams({
-          action: 'approve', id: docId, name: doc.name, email: doc.email,
-          dateTime: doc.dateTime, dateTimeDisplay, cancelUrl,
-          calendarEventId: appointment.id ?? '',
-        });
-        fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-          .catch((err) => logger.warn('[AdminController] n8n notify failed (non-fatal):', err));
-      }
+      this.notifyN8nApproval(docId, doc.name, doc.email, doc.dateTime, cancelUrl, appointment.id ?? '');
 
-      logger.info(`[AdminController] Approved ${doc.bookingReference} — event ${appointment.id}`);
+      logger.info(`[AdminController] Approved ${doc.bookingReference}`);
       res.status(200).json({ status: 'approved', calendarEventId: appointment.id });
     } catch (err) {
       logger.error('[AdminController] Approve failed:', err);
@@ -112,7 +175,6 @@ export class AdminController {
   };
 
   rejectAppointment = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid appointment ID.' }); return;
@@ -122,36 +184,18 @@ export class AdminController {
     if (doc.status !== 'pending') { res.status(409).json({ error: `Already ${doc.status}.` }); return; }
 
     try {
-      // 1. Ret emaili gönder
       await this.deps.mailService.sendRejection({
         name: doc.name, email: doc.email, dateTime: doc.dateTime,
       });
 
-      // 2. DB güncelle
       doc.status = 'rejected';
       await doc.save();
 
-      // 3. Google Sheets güncelle (fire-and-forget)
       const docId = (doc._id as { toString(): string }).toString();
-      this.deps.sheetsService?.updateRow(docId, {
-        status: 'rejected',
-      }).catch((err) => logger.warn('[AdminController] Sheets reject update failed (non-fatal):', err));
+      this.deps.sheetsService?.updateRow(docId, { status: 'rejected' })
+        .catch((err) => logger.warn('[AdminController] Sheets reject failed (non-fatal):', err));
 
-      // 4. n8n'e bildir (fire-and-forget)
-      if (this.deps.n8nApprovalWebhookUrl) {
-        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
-        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-          day: 'numeric', month: 'long', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
-        }).format(new Date(doc.dateTime));
-        const n8nBase = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
-        const params  = new URLSearchParams({
-          action: 'reject', id: docId, name: doc.name, email: doc.email,
-          dateTime: doc.dateTime, dateTimeDisplay,
-        });
-        fetch(`${n8nBase}?${params.toString()}`, { method: 'GET' })
-          .catch((err) => logger.warn('[AdminController] n8n notify failed (non-fatal):', err));
-      }
+      this.notifyN8nApproval(docId, doc.name, doc.email, doc.dateTime, '', '', 'reject');
 
       logger.info(`[AdminController] Rejected ${doc.bookingReference}`);
       res.status(200).json({ status: 'rejected' });
@@ -162,7 +206,6 @@ export class AdminController {
   };
 
   completeAppointment = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid appointment ID.' }); return;
@@ -170,14 +213,55 @@ export class AdminController {
     const doc = await AppointmentModel.findById(id);
     if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
     if (doc.status === 'completed') { res.status(409).json({ error: 'Already completed.' }); return; }
+
     doc.status = 'completed';
     await doc.save();
     logger.info(`[AdminController] Completed ${doc.bookingReference}`);
     res.status(200).json({ status: 'completed' });
   };
 
+  cancelAppointment = async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ error: 'Invalid appointment ID.' }); return;
+    }
+    const doc = await AppointmentModel.findById(id);
+    if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
+    if (doc.status === 'cancelled') { res.status(409).json({ error: 'Already cancelled.' }); return; }
+
+    const prevCalendarEventId = doc.calendarEventId;
+    doc.status = 'cancelled';
+    await doc.save();
+    logger.info(`[AdminController] Cancelled ${doc.bookingReference}`);
+    res.status(200).json({ status: 'cancelled' });
+
+    // Fire-and-forget cleanup
+    (async () => {
+      if (prevCalendarEventId) {
+        try { await this.deps.calendarService.deleteEvent(prevCalendarEventId); }
+        catch (err) { logger.error('[AdminController] Calendar delete failed:', err); }
+      }
+      const emailParams = {
+        name: doc.name, email: doc.email,
+        dateTime: doc.dateTime, bookingReference: doc.bookingReference,
+      };
+      await Promise.allSettled([
+        this.deps.mailService.sendCancellationToUser(emailParams),
+        this.deps.mailService.sendCancellationToAdmin(emailParams),
+      ]);
+      if (this.deps.n8nCancellationWebhookUrl) {
+        const params = new URLSearchParams({
+          id: (doc._id as { toString(): string }).toString(),
+          bookingReference: doc.bookingReference,
+          status: 'cancelled',
+        });
+        fetch(`${this.deps.n8nCancellationWebhookUrl.replace(/\/$/, '')}?${params.toString()}`, { method: 'GET' })
+          .catch((err) => logger.error('[AdminController] n8n cancel webhook failed:', err));
+      }
+    })().catch((err) => logger.error('[AdminController] Cancel cleanup error:', err));
+  };
+
   bulkAction = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
     const { ids, action } = req.body as { ids?: unknown; action?: unknown };
     if (!Array.isArray(ids) || ids.length === 0) {
       res.status(400).json({ error: 'ids array is required.' }); return;
@@ -185,6 +269,7 @@ export class AdminController {
     if (action !== 'cancel' && action !== 'complete') {
       res.status(400).json({ error: 'action must be cancel or complete.' }); return;
     }
+
     const results: { id: string; ok: boolean; message?: string }[] = [];
     for (const id of ids as string[]) {
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -212,48 +297,28 @@ export class AdminController {
         results.push({ id, ok: false, message: 'Internal error.' });
       }
     }
+
     const failed = results.filter((r) => !r.ok).length;
     res.status(200).json({ processed: results.length, failed, results });
   };
 
-  cancelAppointment = async (req: Request, res: Response): Promise<void> => {
-    if (!this.checkAuth(req, res)) return;
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({ error: 'Invalid appointment ID.' }); return;
-    }
-    const doc = await AppointmentModel.findById(id);
-    if (!doc) { res.status(404).json({ error: 'Appointment not found.' }); return; }
-    if (doc.status === 'cancelled') { res.status(409).json({ error: 'Already cancelled.' }); return; }
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
 
-    const prevCalendarEventId = doc.calendarEventId;
-    doc.status = 'cancelled';
-    await doc.save();
-    logger.info(`[AdminController] Cancelled ${doc.bookingReference}`);
-    res.status(200).json({ status: 'cancelled' });
-
-    (async () => {
-      if (prevCalendarEventId) {
-        try { await this.deps.calendarService.deleteEvent(prevCalendarEventId); }
-        catch (err) { logger.error('[AdminController] Calendar delete failed:', err); }
-      }
-      const emailParams = {
-        name: doc.name, email: doc.email,
-        dateTime: doc.dateTime, bookingReference: doc.bookingReference,
-      };
-      await Promise.allSettled([
-        this.deps.mailService.sendCancellationToUser(emailParams),
-        this.deps.mailService.sendCancellationToAdmin(emailParams),
-      ]);
-      if (this.deps.n8nCancellationWebhookUrl) {
-        const params = new URLSearchParams({
-          id:               (doc._id as { toString(): string }).toString(),
-          bookingReference: doc.bookingReference,
-          status:           'cancelled',
-        });
-        fetch(`${this.deps.n8nCancellationWebhookUrl.replace(/\/$/, '')}?${params.toString()}`, { method: 'GET' })
-          .catch((err) => logger.error('[AdminController] n8n cancel webhook failed:', err));
-      }
-    })().catch((err) => logger.error('[AdminController] Cancel cleanup error:', err));
-  };
+  private notifyN8nApproval(
+    id: string, name: string, email: string, dateTime: string,
+    cancelUrl: string, calendarEventId: string, action = 'approve',
+  ): void {
+    if (!this.deps.n8nApprovalWebhookUrl) return;
+    const tz = process.env.TIMEZONE ?? 'Europe/Istanbul';
+    const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
+    }).format(new Date(dateTime));
+    const params = new URLSearchParams({ action, id, name, email, dateTime, dateTimeDisplay, cancelUrl, calendarEventId });
+    const base   = this.deps.n8nApprovalWebhookUrl.replace(/\/$/, '');
+    fetch(`${base}?${params.toString()}`, { method: 'GET' })
+      .catch((err) => logger.warn('[AdminController] n8n notify failed (non-fatal):', err));
+  }
 }

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { User, Mail, MessageSquare, AlertCircle, Sparkles, Brain, CalendarSearch, Zap } from 'lucide-react';
 import { useAppointment } from '../../hooks/useAppointment';
+import { Button } from '../ui/Button';
 import { step1Schema, type Step1Values } from '../../validators/formSchema';
 
 const ENQUIRY_MAX = 2000;
@@ -197,9 +198,9 @@ export function Step1() {
       )}
 
       {/* Gönder */}
-      <button type="submit" disabled={isLoading} className="btn-primary w-full">
+      <Button type="submit" disabled={isLoading} className="w-full">
         Devam Et →
-      </button>
+      </Button>
     </form>
   );
 }

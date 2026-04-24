@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Bot, CalendarCheck, Zap, Sparkles, CheckCircle2, Clock,
-  Mail, Search, Loader2, AlertTriangle,
+  Mail, Search, AlertTriangle,
   Shield, Star, ArrowRight, Home,
 } from 'lucide-react';
 import { Navbar }           from '../layout/Navbar';
@@ -20,6 +20,8 @@ import { api, type AppointmentStatusItem } from '../../services/api';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE }             from '@shared/constants';
 import { ResultBanner }         from '../ui/ResultBanner';
+import { Button }               from '../ui/Button';
+import { CustomerChat }         from '../chat/CustomerChat';
 
 // ---------------------------------------------------------------------------
 // Status badge helpers
@@ -134,14 +136,10 @@ function StatusTabContent() {
               disabled={loading}
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary flex-shrink-0 flex items-center gap-2"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          <Button type="submit" disabled={loading} loading={loading} className="flex-shrink-0">
+            {!loading && <Search className="w-4 h-4" />}
             Sorgula
-          </button>
+          </Button>
         </form>
 
         {error && (
@@ -254,14 +252,14 @@ function HowItWorksSection() {
         {HOW_IT_WORKS.map(({ step, icon: Icon, color, title, desc }) => (
           <div
             key={step}
-            className="relative rounded-2xl p-6 space-y-4"
+            className="relative rounded-2xl p-6 space-y-4 flex flex-col items-center text-center"
             style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${color}`}>
-                <Icon className="w-5 h-5" />
+            <div className="flex flex-col items-center gap-2">
+              <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${color}`}>
+                <Icon className="w-6 h-6" />
               </div>
-              <span className="text-3xl font-black text-slate-100 dark:text-slate-800 select-none">{step}</span>
+              <span className="text-4xl font-black text-slate-100 dark:text-slate-800 select-none leading-none">{step}</span>
             </div>
             <div>
               <h3 className="font-bold text-slate-900 dark:text-white">{title}</h3>
@@ -354,21 +352,18 @@ export function LandingPage() {
 
         {/* CTA */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <button
-            onClick={() => { setTab('booking'); document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' }); }}
-            className="btn-primary flex items-center gap-2"
-          >
+          <Button onClick={() => { setTab('booking'); document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' }); }}>
             <CalendarCheck className="w-4 h-4" />
             Hemen Randevu Al
             <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => { setTab('status'); document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' }); }}
-            className="btn-secondary flex items-center gap-2"
           >
             <Search className="w-4 h-4" />
             Randevumu Sorgula
-          </button>
+          </Button>
         </div>
 
         {/* Feature pills */}
@@ -431,6 +426,7 @@ export function LandingPage() {
       <TrustSection />
 
       <Footer />
+      <CustomerChat />
     </div>
   );
 }

@@ -1,477 +1,481 @@
 {
-  "name": "Smart App — Randevu Otomasyonu",
   "nodes": [
     {
       "parameters": {
-        "content": "## 🚀 Smart App — Randevu Otomasyonu v5\n\n**Sheets sütunları:** id · name · email · enquiry · status · dateTime · calendarEventId\n\n**Akış:**\n1. Randevu Alındı → Veriyi Formatla → E-postalar + Sheets kaydet\n2. Onay/Red Webhook → IF → Onayla/Reddet kolları\n3. Onayla: Takvime Ekle → Sunucuya Bildir (calendarEventId ile) → Sheets güncelle → Onay e-postası\n4. Reddet: Sunucuya Bildir → Sheets güncelle → Red e-postası\n5. İptal: İptal Webhook → Sheets güncelle\n\n**Önemli:** Sunucuya Onayla Bildir URL'i calendarEventId query param içerir\n\n**Kurulum:**\n- Gmail, Google Sheets, Google Calendar OAuth2 credential ekle\n- YOUR_ADMIN_EMAIL, YOUR_SHEET_ID değerlerini güncelle",
-        "height": 420,
-        "width": 480,
-        "color": 5
-      },
-      "id": "sticky-setup-note",
-      "name": "📋 Kurulum Notu",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [-200, 60]
-    },
-
-    {
-      "parameters": {
         "httpMethod": "POST",
-        "path": "appointments",
-        "responseMode": "onReceived",
-        "options": {
-          "responseCode": 200,
-          "responseData": "{ \"received\": true }"
-        }
+        "path": "randevu-al",
+        "options": {}
       },
-      "id": "wh-booking",
+      "id": "5e20a63a-7757-46a1-a5e8-a13d0bda7b68",
       "name": "Randevu Alındı",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [280, 300],
-      "webhookId": "smart-app-appointments"
+      "position": [
+        464,
+        64
+      ],
+      "webhookId": "reserveai-randevu-al"
     },
-
-    {
-      "parameters": {
-        "mode": "manual",
-        "duplicateItem": false,
-        "assignments": {
-          "assignments": [
-            {
-              "id": "f-id",
-              "name": "id",
-              "value": "={{ $json.id }}",
-              "type": "string"
-            },
-            {
-              "id": "f-name",
-              "name": "name",
-              "value": "={{ $json.name }}",
-              "type": "string"
-            },
-            {
-              "id": "f-email",
-              "name": "email",
-              "value": "={{ $json.email }}",
-              "type": "string"
-            },
-            {
-              "id": "f-enquiry",
-              "name": "enquiry",
-              "value": "={{ $json.enquiry }}",
-              "type": "string"
-            },
-            {
-              "id": "f-datetime",
-              "name": "dateTime",
-              "value": "={{ $json.dateTime }}",
-              "type": "string"
-            },
-            {
-              "id": "f-datetime-display",
-              "name": "dateTimeDisplay",
-              "value": "={{ new Intl.DateTimeFormat('tr-TR', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Europe/Istanbul'}).format(new Date($json.dateTime)) }}",
-              "type": "string"
-            },
-            {
-              "id": "f-status",
-              "name": "status",
-              "value": "={{ $json.status }}",
-              "type": "string"
-            },
-            {
-              "id": "f-approve-url",
-              "name": "approveUrl",
-              "value": "={{ $json.approveUrl }}",
-              "type": "string"
-            },
-            {
-              "id": "f-reject-url",
-              "name": "rejectUrl",
-              "value": "={{ $json.rejectUrl }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "set-format",
-      "name": "Veriyi Formatla",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [520, 300]
-    },
-
-    {
-      "parameters": {
-        "sendTo": "={{ $json.email }}",
-        "subject": "=✅ Randevu Talebiniz Alındı — {{ $json.dateTimeDisplay }}",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:24px;font-weight:700'>✅ Randevu Talebiniz Alındı</h1></td></tr><tr><td style='padding:32px 40px'><p style='color:#374151;font-size:16px;margin:0 0 24px'>Merhaba <strong>{{ $json.name }}</strong>,</p><p style='color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px'>Randevu talebiniz sistemimize başarıyla kaydedildi. Talebiniz incelendikten sonra size onay veya bilgi e-postası gönderilecektir.</p><table width='100%' cellpadding='0' cellspacing='0' style='background:#f8fafc;border-radius:10px;overflow:hidden;margin:0 0 24px'><tr><td style='padding:12px 16px;background:#e0e7ff;font-weight:600;color:#3730a3;width:140px'>📅 Tarih &amp; Saat</td><td style='padding:12px 16px;color:#1e293b;font-weight:500'>{{ $json.dateTimeDisplay }}</td></tr><tr><td style='padding:12px 16px;font-weight:600;color:#374151'>📝 Talebiniz</td><td style='padding:12px 16px;color:#1e293b'>{{ $json.enquiry }}</td></tr></table><p style='color:#94a3b8;font-size:13px;margin:0'>Bu e-posta otomatik olarak gönderilmiştir.</p></td></tr></table></td></tr></table></body></html>",
-        "options": {}
-      },
-      "id": "gm-user-receipt",
-      "name": "Kullanıcıya Makbuz",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [760, 180],
-      "credentials": {
-        "gmailOAuth2": { "id": "GMAIL_CREDENTIAL_ID", "name": "Gmail OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "sendTo": "YOUR_ADMIN_EMAIL",
-        "subject": "=🔔 Yeni Randevu Talebi — {{ $json.name }} ({{ $json.dateTimeDisplay }})",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#1e293b,#334155);padding:32px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:22px;font-weight:700'>🔔 Yeni Randevu Talebi</h1></td></tr><tr><td style='padding:32px 40px'><table width='100%' cellpadding='0' cellspacing='0' style='background:#f8fafc;border-radius:10px;overflow:hidden;margin:0 0 28px'><tr><td style='padding:12px 16px;background:#f1f5f9;font-weight:600;color:#374151;width:120px'>Ad Soyad</td><td style='padding:12px 16px;color:#1e293b;font-weight:500'>{{ $json.name }}</td></tr><tr><td style='padding:12px 16px;font-weight:600;color:#374151'>E-posta</td><td style='padding:12px 16px;color:#2563eb'>{{ $json.email }}</td></tr><tr><td style='padding:12px 16px;background:#f1f5f9;font-weight:600;color:#374151'>Tarih &amp; Saat</td><td style='padding:12px 16px;color:#1e293b;font-weight:500'>{{ $json.dateTimeDisplay }}</td></tr><tr><td style='padding:12px 16px;font-weight:600;color:#374151;vertical-align:top'>Talep</td><td style='padding:12px 16px;color:#374151;line-height:1.6'>{{ $json.enquiry }}</td></tr><tr><td style='padding:12px 16px;background:#f1f5f9;font-weight:600;color:#374151'>Referans ID</td><td style='padding:12px 16px;color:#64748b;font-family:monospace;font-size:12px'>{{ $json.id }}</td></tr></table><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center'><a href='{{ $json.approveUrl }}' style='display:inline-block;background:#16a34a;color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;margin-right:12px'>✅ ONAYLA</a><a href='{{ $json.rejectUrl }}' style='display:inline-block;background:#dc2626;color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px'>❌ REDDET</a></td></tr></table></td></tr></table></td></tr></table></body></html>",
-        "options": {}
-      },
-      "id": "gm-admin-approval",
-      "name": "Yöneticiye Onay İsteği",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [760, 420],
-      "credentials": {
-        "gmailOAuth2": { "id": "GMAIL_CREDENTIAL_ID", "name": "Gmail OAuth2" }
-      }
-    },
-
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName":  { "__rl": true, "value": "Randevular", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sayfa1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI/edit#gid=0"
+        },
         "columns": {
-          "mappingMode": "defineBelow",
+          "mappingMode": "autoMapInputData",
           "value": {
-            "id":              "={{ $json.id }}",
-            "name":            "={{ $json.name }}",
-            "email":           "={{ $json.email }}",
-            "enquiry":         "={{ $json.enquiry }}",
-            "status":          "pending",
-            "dateTime":        "={{ $json.dateTime }}",
-            "calendarEventId": ""
-          }
+            "id": "={{ $json.body.id }}",
+            "name": "={{ $json.body.name }}",
+            "email": "={{ $json.body.email }}",
+            "enquiry": "={{ $json.body.enquiry }}",
+            "status": "pending",
+            "dateTime": "={{ $json.body.dateTime }}",
+            "dateTimeDisplay": "={{ new Intl.DateTimeFormat('tr-TR', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Istanbul'}).format(new Date($json.body.dateTime)) }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "enquiry",
+              "displayName": "enquiry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dateTimeDisplay",
+              "displayName": "dateTimeDisplay",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dateTime",
+              "displayName": "dateTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarEventId",
+              "displayName": "calendarEventId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
-      "id": "gs-save",
-      "name": "Google Sheets'e Kaydet",
+      "id": "75787467-b36d-4d5d-8532-0266836c4c0c",
+      "name": "Sheets'e Kaydet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1000, 300],
+      "position": [
+        688,
+        64
+      ],
       "credentials": {
-        "googleSheetsOAuth2Api": { "id": "GSHEETS_CREDENTIAL_ID", "name": "Google Sheets OAuth2" }
+        "googleSheetsOAuth2Api": {
+          "id": "4Bb4ecpkOTcwV0Ma",
+          "name": "Google Sheets account"
+        }
       }
     },
-
     {
       "parameters": {
-        "httpMethod": "GET",
-        "path": "randevu-onayla",
-        "responseMode": "onReceived",
-        "options": {
-          "responseCode": 200,
-          "responseData": "{ \"received\": true }"
+        "sendTo": "reserveaiapp@gmail.com",
+        "subject": "=🔔 Yeni Randevu Talebi — {{ $('Randevu Alındı').item.json.body.name }}",
+        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#1e40af,#1d4ed8);padding:28px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:22px;font-weight:700'>🔔 Yeni Randevu Talebi</h1></td></tr><tr><td style='padding:32px 40px'><table width='100%' cellpadding='0' cellspacing='0' style='background:#f8fafc;border-radius:10px;overflow:hidden;margin:0 0 24px'><tr><td style='padding:10px 16px;font-weight:600;color:#374151;width:130px'>Ad Soyad</td><td style='padding:10px 16px;color:#1e293b'>{{ $('Randevu Alındı').item.json.body.name }}</td></tr><tr style='background:#f1f5f9'><td style='padding:10px 16px;font-weight:600;color:#374151'>E-posta</td><td style='padding:10px 16px;color:#1e293b'>{{ $('Randevu Alındı').item.json.body.email }}</td></tr><tr><td style='padding:10px 16px;font-weight:600;color:#374151'>Tarih &amp; Saat</td><td style='padding:10px 16px;color:#1e293b;font-weight:600'>{{ new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Istanbul'}).format(new Date($('Randevu Alındı').item.json.body.dateTime)) }}</td></tr><tr style='background:#f1f5f9'><td style='padding:10px 16px;font-weight:600;color:#374151'>Talep</td><td style='padding:10px 16px;color:#1e293b'>{{ $('Randevu Alındı').item.json.body.enquiry }}</td></tr></table><table cellpadding='0' cellspacing='0'><tr><td style='padding-right:12px'><a href='https://smart-app-server-puhz.onrender.com/api/approval/a/{{ $('Randevu Alındı').item.json.body.id }}' style='display:inline-block;background:#16a34a;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px'>✅ ONAYLA</a></td><td><a href='https://smart-app-server-puhz.onrender.com/api/approval/r/{{ $('Randevu Alındı').item.json.body.id }}' style='display:inline-block;background:#dc2626;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px'>❌ REDDET</a></td></tr></table></td></tr></table></td></tr></table></body></html>",
+        "options": {}
+      },
+      "id": "96eff8af-88ea-48e2-aea1-0172348eaa12",
+      "name": "Yöneticiye Onay İsteği",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        944,
+        64
+      ],
+      "webhookId": "4b674e7f-8c3b-4d9f-a067-d8ba65e1344e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Co4UDKF3dTtruQE9",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
         }
       },
-      "id": "wh-approve",
-      "name": "Onay/Red Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [280, 680],
-      "webhookId": "smart-app-approve"
+      "id": "b1a3ddc3-4b77-408b-94b6-39e7cd3084ee",
+      "name": "Hatırlatıcı — 09:00 (TR)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        384
+      ]
     },
-
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sayfa1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "8112df70-db9c-40c5-96f2-e6bf91c33d71",
+      "name": "Hatırlatıcı — Sheets Oku",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        704,
+        384
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4Bb4ecpkOTcwV0Ma",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Bugünün tarihini al (Istanbul saatine göre)\nconst now = new Date(new Date().toLocaleString(\"en-US\", {timeZone: \"Europe/Istanbul\"}));\nconst todayDay = now.getDate();\nconst todayMonth = now.getMonth();\nconst todayYear = now.getFullYear();\n\nconst todayDisplay = new Intl.DateTimeFormat('tr-TR', {\n  day: 'numeric', month: 'long', year: 'numeric'\n}).format(now);\n\nconst allItems = $input.all();\n\n// Yardımcı fonksiyon: Sütun ismini bul\nfunction getField(obj, fieldName) {\n  const lower = fieldName.toLowerCase();\n  const key = Object.keys(obj).find(k => k.toLowerCase() === lower);\n  return key ? obj[key] : undefined;\n}\n\nconst appointments = allItems.filter(item => {\n  const row = item.json;\n  const status = getField(row, 'status');\n  const dateTimeRaw = getField(row, 'dateTime') || getField(row, 'datetime') || getField(row, 'date');\n\n  if (!status || !dateTimeRaw) return false;\n\n  const isApproved = String(status).toLowerCase().trim() === 'approved';\n  \n  // Tarihi parse et\n  const d = new Date(dateTimeRaw);\n  if (isNaN(d.getTime())) return false;\n\n  // SADECE GÜN-AY-YIL KARŞILAŞTIRMASI (Sayısal olarak)\n  const isToday = d.getDate() === todayDay && \n                  d.getMonth() === todayMonth && \n                  d.getFullYear() === todayYear;\n\n  return isApproved && isToday;\n}).sort((a, b) => {\n  const da = new Date(getField(a.json, 'dateTime') || getField(a.json, 'datetime'));\n  const db = new Date(getField(b.json, 'dateTime') || getField(b.json, 'datetime'));\n  return da.getTime() - db.getTime();\n});\n\nif (appointments.length === 0) {\n  return [{ json: { hasAppointments: false, count: 0, todayDisplay, tableRows: '' } }];\n}\n\n// Tablo oluşturma\nconst tableRows = appointments.map((item, i) => {\n  const row = item.json;\n  const d = new Date(getField(row, 'dateTime') || getField(row, 'datetime'));\n  const saat = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });\n  const name = getField(row, 'name') || '-';\n  const email = getField(row, 'email') || '-';\n  const bg = i % 2 === 0 ? '#f8fafc' : 'white';\n  \n  return `<tr style='background:${bg}'>`\n    + `<td style='padding:12px 16px;font-weight:700;color:#0369a1;'>${saat}</td>`\n    + `<td style='padding:12px 16px;font-weight:600;color:#1e293b'>${name}</td>`\n    + `<td style='padding:12px 16px;color:#64748b;font-size:13px'>${email}</td>`\n    + `</tr>`;\n}).join('');\n\nreturn [{ json: { hasAppointments: true, count: appointments.length, todayDisplay, tableRows } }];"
+      },
+      "id": "31b59227-722d-46c9-b5f4-6fcf73a2ab39",
+      "name": "Hatırlatıcı — Bugünü Filtrele",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Hatırlatıcı — Sheets Oku').item.json.email }}",
+        "subject": "=⏰ Bugün Randevunuz Var — {{ $('Hatırlatıcı — Sheets Oku').item.json.dateTimeDisplay }}",
+        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#0369a1,#0284c7);padding:28px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:22px;font-weight:700'>⏰ Randevu Hatırlatması</h1></td></tr><tr><td style='padding:32px 40px'><p style='color:#374151;font-size:16px;margin:0 0 20px'>Merhaba <strong>{{ $('Hatırlatıcı — Sheets Oku').item.json.name }}</strong>,</p><p style='color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px'>Bugün bir randevunuz olduğunu hatırlatmak istedik. Sizi bekliyoruz!</p><table width='100%' cellpadding='0' cellspacing='0' style='background:#eff6ff;border-radius:10px;border:1px solid #bfdbfe;overflow:hidden;margin:0 0 24px'><tr><td style='padding:14px 20px;font-weight:600;color:#1e40af;width:130px'>📅 Tarih</td><td style='padding:14px 20px;color:#1e293b;font-weight:600'>{{ $('Hatırlatıcı — Sheets Oku').item.json.dateTimeDisplay.split(' ').slice(0, 3).join(' ') }}</td></tr><tr style='background:#dbeafe'><td style='padding:14px 20px;font-weight:600;color:#1e40af'>🕐 Saat</td><td style='padding:14px 20px;color:#1e293b;font-weight:700;font-size:18px'>{{ $('Hatırlatıcı — Sheets Oku').item.json.dateTimeDisplay.split(' ').pop() }}</td></tr></table><p style='color:#94a3b8;font-size:13px;margin:0'>Bu hatırlatma ReserveAI tarafından otomatik gönderilmiştir.</p></td></tr></table></td></tr></table></body></html>",
+        "options": {}
+      },
+      "id": "11e0eaac-2dc2-494d-9694-7d7f656d91cf",
+      "name": "Hatırlatıcı — Mail Gönder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        384
+      ],
+      "webhookId": "96a41119-104c-4cbc-a5b4-10778680f5b8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Co4UDKF3dTtruQE9",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 5 * * *"
+            }
+          ]
+        }
+      },
+      "id": "29b177c4-2136-4bf6-99bd-e30c662c5e9e",
+      "name": "Günlük Özet — 08:30 (TR)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sayfa1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10_NY_aNt6nuw5-q0KQe3I8ydBwb6Ihu5fCHKEx1FurI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "51de6d75-af53-4b83-883b-b463f9a15763",
+      "name": "Günlük Özet — Sheets Oku",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        704,
+        704
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4Bb4ecpkOTcwV0Ma",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── DEBUG: Sheets'ten gelen ilk satırın yapısını göster ──────────────────────\n\nconst allItems = $input.all();\n\nif (allItems.length > 0) {\n\nconsole.log('[GünlükÖzet] Toplam satır:', allItems.length);\n\nconsole.log('[GünlükÖzet] İlk satır ham keys:', Object.keys(allItems[0].json));\n\nconsole.log('[GünlükÖzet] İlk satır değerleri:', JSON.stringify(allItems[0].json, null, 2));\n\n} else {\n\nconsole.log('[GünlükÖzet] Sheets\\'ten HİÇ satır gelmedi!');\n\n}\n\n\n\n// ── Yardımcı: objedeki anahtarı büyük/küçük harften bağımsız bul ─────────────\n\nfunction getField(obj, fieldName) {\n\nconst lower = fieldName.toLowerCase();\n\nconst key = Object.keys(obj).find(k => k.toLowerCase() === lower);\n\nreturn key ? obj[key] : undefined;\n\n}\n\n\n\n// ── Tarih ayrıştırma — Sheets formatlarını tolere eder ───────────────────────\n\n// Sheets'ten gelen olası formatlar:\n\n// ISO: \"2025-04-22T10:00:00.000Z\"\n\n// Türkçe tarih: \"22 Nisan 2025 10:00\" (nadir, ama olur)\n\n// Sadece sayı (Excel seri): 45769 ← bu durumda hata loglanır\n\nfunction parseDate(raw) {\n\nif (!raw) return null;\n\nconst str = String(raw).trim();\n\n// ISO veya standart formatlar\n\nconst d = new Date(str);\n\nif (!isNaN(d.getTime())) return d;\n\n// \"DD.MM.YYYY HH:mm\" formatı (Google Sheets Türkçe locale)\n\nconst dotFmt = str.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})\\s+(\\d{1,2}):(\\d{2})/);\n\nif (dotFmt) {\n\nconst [, dd, mm, yyyy, hh, min] = dotFmt;\n\nreturn new Date(`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}T${hh.padStart(2,'0')}:${min}:00`);\n\n}\n\nconsole.log('[GünlükÖzet] Tarih ayrıştırılamadı:', raw);\n\nreturn null;\n\n}\n\n\n\n// ── Bugünün tarihini Istanbul'da hesapla ─────────────────────────────────────\n\nconst todayObj = new Date();\n\nconst todayISO = new Intl.DateTimeFormat('en-CA', {\n\ntimeZone: 'Europe/Istanbul'\n\n}).format(todayObj);\n\n\n\nconst todayDisplay = new Intl.DateTimeFormat('tr-TR', {\n\nday: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul'\n\n}).format(todayObj);\n\n\n\nconsole.log('[GünlükÖzet] Bugün (Istanbul):', todayISO);\n\n\n\n// ── Filtreleme ────────────────────────────────────────────────────────────────\n\nconst appointments = allItems\n\n.filter(item => {\n\nconst row = item.json;\n\nconst status = getField(row, 'status');\n\nconst dateTime = getField(row, 'dateTime') ?? getField(row, 'datetime') ?? getField(row, 'date');\n\n\n\nif (!status || !dateTime) {\n\nconsole.log('[GünlükÖzet] Eksik alan — status:', status, '| dateTime:', dateTime,\n\n'| keys:', Object.keys(row).join(', '));\n\nreturn false;\n\n}\n\n\n\nconst isApproved = String(status).toLowerCase().trim() === 'approved';\n\nconst d = parseDate(dateTime);\n\nif (!d) return false;\n\n\n\nconst appointmentISODate = new Intl.DateTimeFormat('en-CA', {\n\ntimeZone: 'Europe/Istanbul'\n\n}).format(d);\n\n\n\nconsole.log('[GünlükÖzet] Satır kontrol —', status, '/', appointmentISODate, '— eşleşiyor:', isApproved && appointmentISODate === todayISO);\n\nreturn isApproved && appointmentISODate === todayISO;\n\n})\n\n.sort((a, b) => {\n\nconst da = parseDate(getField(a.json, 'dateTime') ?? getField(a.json, 'datetime'));\n\nconst db = parseDate(getField(b.json, 'dateTime') ?? getField(b.json, 'datetime'));\n\nreturn (da?.getTime() ?? 0) - (db?.getTime() ?? 0);\n\n});\n\n\n\nconsole.log('[GünlükÖzet] Filtreyi geçen randevu sayısı:', appointments.length);\n\n\n\nif (appointments.length === 0) {\n\nreturn [{ json: { hasAppointments: false, count: 0, todayDisplay, tableRows: '' } }];\n\n}"
+      },
+      "id": "c839d37d-f497-4305-b5ea-9aee8652c89b",
+      "name": "Günlük Özet — İçerik Oluştur",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        704
+      ]
+    },
     {
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
-              "id": "cond-action",
-              "leftValue": "={{ $json.query.action }}",
-              "rightValue": "approve",
-              "operator": { "type": "string", "operation": "equals" }
+              "id": "check-has-appointments",
+              "leftValue": "={{ $json.hasAppointments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "if-action",
-      "name": "Onayla mı Reddet mi?",
+      "id": "5a9445f4-03b4-446b-ae0d-a0de16434129",
+      "name": "Günlük Özet — Randevu Var mı?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [520, 680]
+      "position": [
+        1184,
+        704
+      ]
     },
-
     {
       "parameters": {
-        "operation": "create",
-        "calendar": { "__rl": true, "value": "primary", "mode": "id" },
-        "start": "={{ $json.query.dateTime }}",
-        "end":   "={{ new Date(new Date($json.query.dateTime).getTime() + 30*60*1000).toISOString() }}",
-        "additionalFields": {
-          "summary":      "=Randevu: {{ $json.query.name }}",
-          "description":  "=Kişi: {{ $json.query.name }}\nE-posta: {{ $json.query.email }}\nTarih: {{ $json.query.dateTimeDisplay }}",
-          "attendees":    "={{ $json.query.email.toString().trim() }}",
-          "timeZone":     "Europe/Istanbul",
-          "transparency": "opaque",
-          "visibility":   "default"
-        }
-      },
-      "id": "gcal-create",
-      "name": "Takvime Ekle",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [760, 580],
-      "credentials": {
-        "googleCalendarOAuth2Api": { "id": "GCAL_CREDENTIAL_ID", "name": "Google Calendar OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://localhost:3000/api/approval/approve/{{ $('Onay/Red Webhook').item.json.query.id }}?calendarEventId={{ $json.id }}",
+        "sendTo": "reserveaiapp@gmail.com",
+        "subject": "=📋 Bugünkü Randevu Programı — {{ $json.todayDisplay }} ({{ $json.count }} randevu)",
+        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:28px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:22px;font-weight:700'>📋 Günlük Randevu Programı</h1><p style='color:#ddd6fe;margin:8px 0 0;font-size:15px'>{{ $json.todayDisplay }}</p></td></tr><tr><td style='padding:32px 40px'><p style='color:#374151;font-size:15px;margin:0 0 20px'>Bugün <strong>{{ $json.count }} randevunuz</strong> bulunmaktadır.</p><table width='100%' cellpadding='0' cellspacing='0' style='border-radius:10px;overflow:hidden;border:1px solid #e2e8f0'><tr style='background:#7c3aed'><td style='padding:10px 16px;color:white;font-weight:700;font-size:13px;width:70px'>SAAT</td><td style='padding:10px 16px;color:white;font-weight:700;font-size:13px'>AD SOYAD</td><td style='padding:10px 16px;color:white;font-weight:700;font-size:13px'>E-POSTA</td></tr>{{ $json.tableRows }}</table><p style='color:#94a3b8;font-size:12px;margin:20px 0 0'>Bu özet her sabah 08:30'da otomatik oluşturulmaktadır.</p></td></tr></table></td></tr></table></body></html>",
         "options": {}
       },
-      "id": "http-notify-approve",
-      "name": "Sunucuya Onayla Bildir",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1000, 580]
-    },
-
-    {
-      "parameters": {
-        "operation": "update",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName":  { "__rl": true, "value": "Randevular", "mode": "name" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "id":              "={{ $('Onay/Red Webhook').item.json.query.id }}",
-            "status":          "approved",
-            "calendarEventId": "={{ $('Takvime Ekle').item.json.id }}"
-          },
-          "matchingColumns": ["id"]
-        },
-        "options": {}
-      },
-      "id": "gs-update-approved",
-      "name": "Sheets Onayla Güncelle",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [1240, 580],
-      "credentials": {
-        "googleSheetsOAuth2Api": { "id": "GSHEETS_CREDENTIAL_ID", "name": "Google Sheets OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "sendTo": "={{ $('Onay/Red Webhook').item.json.query.email }}",
-        "subject": "=🎉 Randevunuz Onaylandı — {{ $('Onay/Red Webhook').item.json.query.dateTimeDisplay }}",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#16a34a,#15803d);padding:32px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:24px;font-weight:700'>🎉 Randevunuz Onaylandı!</h1></td></tr><tr><td style='padding:32px 40px'><p style='color:#374151;font-size:16px;margin:0 0 20px'>Merhaba <strong>{{ $('Onay/Red Webhook').item.json.query.name }}</strong>,</p><p style='color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px'>Randevu talebiniz onaylandı. Sizi bekliyoruz!</p><table width='100%' cellpadding='0' cellspacing='0' style='background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;overflow:hidden;margin:0 0 24px'><tr><td style='padding:12px 16px;font-weight:600;color:#15803d;width:140px'>📅 Tarih &amp; Saat</td><td style='padding:12px 16px;color:#1e293b;font-weight:500'>{{ $('Onay/Red Webhook').item.json.query.dateTimeDisplay }}</td></tr></table><p style='color:#374151;font-size:14px;line-height:1.6;margin:0 0 20px'>Google Takvim davetiyesi ayrıca gönderilecektir.</p><hr style='border:none;border-top:1px solid #e2e8f0;margin:24px 0'><p style='color:#64748b;font-size:13px;margin:0 0 12px'>Randevunuzu iptal etmek isterseniz:</p><a href='{{ $('Onay/Red Webhook').item.json.query.cancelUrl }}' style='display:inline-block;background:#f1f5f9;color:#64748b;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:13px;border:1px solid #cbd5e1'>🚫 Randevuyu İptal Et</a></td></tr></table></td></tr></table></body></html>",
-        "options": {}
-      },
-      "id": "gm-confirmed",
-      "name": "Onay E-postası Gönder",
+      "id": "6da3fb2c-f61b-4963-a386-b5caac02df79",
+      "name": "Günlük Özet — Mail Gönder",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [1480, 580],
+      "position": [
+        1424,
+        688
+      ],
+      "webhookId": "1d8ef3e2-f430-47be-aa32-d97ddcfcce74",
       "credentials": {
-        "gmailOAuth2": { "id": "GMAIL_CREDENTIAL_ID", "name": "Gmail OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://localhost:3000/api/approval/reject/{{ $json.query.id }}",
-        "options": {}
-      },
-      "id": "http-notify-reject",
-      "name": "Sunucuya Reddet Bildir",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [760, 800]
-    },
-
-    {
-      "parameters": {
-        "operation": "update",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName":  { "__rl": true, "value": "Randevular", "mode": "name" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "id":     "={{ $('Onay/Red Webhook').item.json.query.id }}",
-            "status": "rejected"
-          },
-          "matchingColumns": ["id"]
-        },
-        "options": {}
-      },
-      "id": "gs-update-rejected",
-      "name": "Sheets Reddet Güncelle",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [1000, 800],
-      "credentials": {
-        "googleSheetsOAuth2Api": { "id": "GSHEETS_CREDENTIAL_ID", "name": "Google Sheets OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "sendTo": "={{ $('Onay/Red Webhook').item.json.query.email }}",
-        "subject": "=Randevu Talebiniz Hakkında — {{ $('Onay/Red Webhook').item.json.query.dateTimeDisplay }}",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif'><table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:32px 16px'><table width='600' cellpadding='0' cellspacing='0' style='background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'><tr><td style='background:linear-gradient(135deg,#64748b,#475569);padding:32px 40px;text-align:center'><h1 style='color:white;margin:0;font-size:22px;font-weight:700'>Randevu Talebiniz Hakkında</h1></td></tr><tr><td style='padding:32px 40px'><p style='color:#374151;font-size:16px;margin:0 0 20px'>Merhaba <strong>{{ $('Onay/Red Webhook').item.json.query.name }}</strong>,</p><p style='color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px'>Maalesef <strong>{{ $('Onay/Red Webhook').item.json.query.dateTimeDisplay }}</strong> için yaptığınız randevu talebi bu sefer uygun bulunmadı.</p><p style='color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px'>Farklı bir tarih ve saat için yeniden başvurabilirsiniz.</p></td></tr></table></td></tr></table></body></html>",
-        "options": {}
-      },
-      "id": "gm-rejected",
-      "name": "Red E-postası Gönder",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [1240, 800],
-      "credentials": {
-        "gmailOAuth2": { "id": "GMAIL_CREDENTIAL_ID", "name": "Gmail OAuth2" }
-      }
-    },
-
-    {
-      "parameters": {
-        "httpMethod": "GET",
-        "path": "randevu-iptal",
-        "responseMode": "onReceived",
-        "options": {
-          "responseCode": 200,
-          "responseData": "{ \"received\": true }"
+        "gmailOAuth2": {
+          "id": "Co4UDKF3dTtruQE9",
+          "name": "Gmail account"
         }
-      },
-      "id": "wh-cancel",
-      "name": "İptal Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [280, 1020],
-      "webhookId": "smart-app-cancel"
-    },
-
-    {
-      "parameters": {
-        "operation": "update",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName":  { "__rl": true, "value": "Randevular", "mode": "name" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "id":     "={{ $json.query.id }}",
-            "status": "cancelled"
-          },
-          "matchingColumns": ["id"]
-        },
-        "options": {}
-      },
-      "id": "gs-update-cancelled",
-      "name": "Sheets İptal Güncelle",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [520, 1020],
-      "credentials": {
-        "googleSheetsOAuth2Api": { "id": "GSHEETS_CREDENTIAL_ID", "name": "Google Sheets OAuth2" }
       }
     }
   ],
-
   "connections": {
     "Randevu Alındı": {
       "main": [
-        [{ "node": "Veriyi Formatla", "type": "main", "index": 0 }]
-      ]
-    },
-    "Veriyi Formatla": {
-      "main": [
         [
-          { "node": "Kullanıcıya Makbuz",      "type": "main", "index": 0 },
-          { "node": "Yöneticiye Onay İsteği",  "type": "main", "index": 0 },
-          { "node": "Google Sheets'e Kaydet",  "type": "main", "index": 0 }
+          {
+            "node": "Sheets'e Kaydet",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Onay/Red Webhook": {
+    "Sheets'e Kaydet": {
       "main": [
-        [{ "node": "Onayla mı Reddet mi?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Yöneticiye Onay İsteği",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Onayla mı Reddet mi?": {
+    "Hatırlatıcı — 09:00 (TR)": {
       "main": [
-        [{ "node": "Takvime Ekle",           "type": "main", "index": 0 }],
-        [{ "node": "Sunucuya Reddet Bildir", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Hatırlatıcı — Sheets Oku",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Takvime Ekle": {
+    "Hatırlatıcı — Sheets Oku": {
       "main": [
-        [{ "node": "Sunucuya Onayla Bildir", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Hatırlatıcı — Bugünü Filtrele",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Sunucuya Onayla Bildir": {
+    "Hatırlatıcı — Bugünü Filtrele": {
       "main": [
-        [{ "node": "Sheets Onayla Güncelle", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Hatırlatıcı — Mail Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Sheets Onayla Güncelle": {
+    "Günlük Özet — 08:30 (TR)": {
       "main": [
-        [{ "node": "Onay E-postası Gönder", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Günlük Özet — Sheets Oku",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Sunucuya Reddet Bildir": {
+    "Günlük Özet — Sheets Oku": {
       "main": [
-        [{ "node": "Sheets Reddet Güncelle", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Günlük Özet — İçerik Oluştur",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Sheets Reddet Güncelle": {
+    "Günlük Özet — İçerik Oluştur": {
       "main": [
-        [{ "node": "Red E-postası Gönder", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Günlük Özet — Randevu Var mı?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "İptal Webhook": {
+    "Günlük Özet — Randevu Var mı?": {
       "main": [
-        [{ "node": "Sheets İptal Güncelle", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Günlük Özet — Mail Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-
   "pinData": {},
-  "settings": {
-    "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": ""
-  },
-  "staticData": null,
-  "tags": [
-    { "name": "smart-app" },
-    { "name": "randevu" }
-  ],
-  "triggerCount": 3,
-  "active": false,
-  "id": "smart-app-randevu-workflow",
   "meta": {
-    "instanceId": "smart-app-local",
-    "templateCredsSetupCompleted": false
-  },
-  "versionId": "5.0.0"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60f636ec0a31d229fa7f219d0e62869c901e55615d32c1ba83a7417f51dfdf68"
+  }
 }

@@ -31,6 +31,21 @@ export interface Appointment {
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 /** Stored in DB; used by FormController → MailService → ApprovalController. */
+// ---------------------------------------------------------------------------
+// Triage & Sentiment Engine
+// ---------------------------------------------------------------------------
+
+export type TriageUrgency  = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+export type TriageSentiment = 'POSITIVE' | 'NEUTRAL' | 'ANXIOUS' | 'FRUSTRATED';
+
+export interface TriageResult {
+  urgency:      TriageUrgency;
+  sentiment:    TriageSentiment;
+  clarity:      number;       // 0–100
+  adminSummary: string;       // single Turkish sentence for admin
+  processedAt:  string;       // ISO 8601
+}
+
 export interface ApprovalPayload {
   submissionId:     string;
   name:             string;
@@ -41,6 +56,7 @@ export interface ApprovalPayload {
   submittedAt:      string;
   approvalToken:    string;   // 64-char hex → goes into email link
   bookingReference: string;   // RSV-XXXXXX → shown to user
+  triage?:          TriageResult;
 }
 
 // ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ export function createAiService(): AiService {
     case 'groq':
       return new GroqService(
         process.env.GROQ_API_KEY ?? '',
-        process.env.GROQ_MODEL ?? 'llama3-8b-8192',
+        process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
       );
     default:
       throw new Error(

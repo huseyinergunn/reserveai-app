@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import type { FormSubmission, ApprovalPayload } from '../../../../shared/types';
+import type { FormSubmission, ApprovalPayload, TriageUrgency } from '../../../../shared/types';
 import { formatDisplayDateTime } from '../../../../shared/dateUtils';
 import { logger } from '../../utils/logger';
 
@@ -55,27 +55,55 @@ export class MailService {
   /** Sends an approve/decline email to the admin with a frontend approval link. */
   async sendApprovalRequest(payload: ApprovalPayload): Promise<void> {
     const display = formatDisplayDateTime(payload.dateTime);
-    // Frontend approval page — admin reviews details and clicks Confirm/Decline there
     const approvalPageUrl = `${this.cfg.clientUrl}/approve/${payload.approvalToken}`;
+    const urgency = payload.triage?.urgency ?? 'NORMAL';
+
+    const URGENCY_META: Record<TriageUrgency, { prefix: string; color: string; label: string; emoji: string }> = {
+      CRITICAL: { prefix: '🚨 ACİL — ',    color: '#dc2626', label: 'ACİL',   emoji: '🚨' },
+      HIGH:     { prefix: '⚠️ Önemli — ',  color: '#d97706', label: 'ÖNEMLİ', emoji: '⚠️' },
+      NORMAL:   { prefix: '',               color: '#3b82f6', label: 'NORMAL', emoji: '📋' },
+      LOW:      { prefix: '',               color: '#64748b', label: 'DÜŞÜK',  emoji: '📋' },
+    };
+    const meta = URGENCY_META[urgency];
+
+    const urgencyBanner = urgency === 'CRITICAL' || urgency === 'HIGH' ? `
+      <div style="background:${meta.color};color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:16px;font-weight:700;font-size:15px">
+        ${meta.emoji} ${meta.label} ÖNCELIK — Bu randevu talebini öncelikli inceleyin.
+      </div>` : '';
+
+    const triageRow = payload.triage?.adminSummary ? `
+      <tr style="background:#f0f9ff">
+        <td style="padding:8px 12px;font-weight:600;color:#0369a1">🤖 AI Özeti</td>
+        <td style="padding:8px 12px;color:#0c4a6e;font-style:italic">${escapeHtml(payload.triage.adminSummary)}</td>
+      </tr>` : '';
+
+    const sentimentRow = payload.triage ? `
+      <tr>
+        <td style="padding:8px 12px;font-weight:600">Duygu Tonu</td>
+        <td style="padding:8px 12px">${escapeHtml(payload.triage.sentiment)} · Netlik: ${payload.triage.clarity}/100</td>
+      </tr>` : '';
 
     await this.send({
-      to: this.cfg.adminEmail,
-      subject: 'New Appointment Request!',
+      to:      this.cfg.adminEmail,
+      subject: `${meta.prefix}New Appointment Request — ${payload.bookingReference}`,
       html: `
-        <h2>New Appointment Request</h2>
-        <p>Requested date: <strong>${escapeHtml(display)}</strong></p>
-        <table style="border-collapse:collapse;margin-bottom:16px">
-          <tr><td><strong>Name</strong></td><td>${escapeHtml(payload.name)}</td></tr>
-          <tr><td><strong>Email</strong></td><td>${escapeHtml(payload.email)}</td></tr>
-          <tr><td><strong>Booking Ref</strong></td><td>${escapeHtml(payload.bookingReference)}</td></tr>
-          <tr><td><strong>Summary</strong></td><td>${escapeHtml(payload.enquirySummary)}</td></tr>
-          <tr><td><strong>Submitted at</strong></td><td>${escapeHtml(payload.submittedAt)}</td></tr>
+        ${urgencyBanner}
+        <h2>Yeni Randevu Talebi</h2>
+        <p>Talep edilen tarih: <strong>${escapeHtml(display)}</strong></p>
+        <table style="border-collapse:collapse;margin-bottom:16px;width:100%">
+          <tr><td style="padding:8px 12px;font-weight:600">Ad Soyad</td><td style="padding:8px 12px">${escapeHtml(payload.name)}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600">E-posta</td><td style="padding:8px 12px">${escapeHtml(payload.email)}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600">Rezervasyon Ref</td><td style="padding:8px 12px">${escapeHtml(payload.bookingReference)}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600">Talep Özeti</td><td style="padding:8px 12px">${escapeHtml(payload.enquirySummary)}</td></tr>
+          ${triageRow}
+          ${sentimentRow}
+          <tr><td style="padding:8px 12px;font-weight:600">Gönderilme</td><td style="padding:8px 12px">${escapeHtml(payload.submittedAt)}</td></tr>
         </table>
-        <a href="${approvalPageUrl}" style="padding:10px 20px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none">
-          📋 Review &amp; Decide
+        <a href="${approvalPageUrl}" style="padding:10px 20px;background:${meta.color};color:#fff;border-radius:4px;text-decoration:none">
+          ${meta.emoji} İncele &amp; Karar Ver
         </a>`,
     });
-    logger.info(`[MailService] Approval request → ${this.cfg.adminEmail} (ref=${payload.bookingReference})`);
+    logger.info(`[MailService] Approval request → ${this.cfg.adminEmail} (ref=${payload.bookingReference}, urgency=${urgency})`);
   }
 
   /** Sends a confirmation to the user after admin approval. No ICS — pure HTML. */
