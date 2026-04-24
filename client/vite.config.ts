@@ -11,4 +11,9 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': { target: 'http://localhost:3000', changeOrigin: true } },
   },
+  build: {
+    target:    'es2020',
+    sourcemap: false,
+    outDir:    'dist',
+  },
 });

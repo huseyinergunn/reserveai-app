@@ -16,13 +16,13 @@ services:
       - key: PORT
         value: 10000
 
-      # Frontend URL — Static Site deploy edilince güncelle
+      # Frontend URL — CORS allowedOrigins için (virgülle birden fazla eklenebilir)
       - key: CLIENT_URL
-        value: https://reserveai.onrender.com
+        value: https://reserveai-cckb.onrender.com,http://localhost:5173,http://localhost:3000
 
-      # APP_BASE_URL — bu servisin public URL'i
+      # APP_BASE_URL — bu servisin public URL'i (e-posta linkleri için)
       - key: APP_BASE_URL
-        value: https://smart-app-server.onrender.com
+        value: https://smart-app-server-puhz.onrender.com
 
       # ── Aşağıdakiler Render Dashboard > Environment'tan girilecek ──────────
       - key: MONGODB_URI
@@ -117,9 +117,14 @@ services:
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    # SPA rewrite — tüm path'leri index.html'e yönlendir; React routing devralır
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://smart-app-server-y5dh.onrender.com
+        value: https://smart-app-server-puhz.onrender.com
 
       # Render Dashboard > Environment'tan set et — buraya ASLA gerçek değer yazma
       - key: VITE_ADMIN_SECRET_KEY
