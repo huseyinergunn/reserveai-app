@@ -397,7 +397,7 @@ export function LandingPage() {
           {/* ── LEFT: Text content ── */}
           <div className="flex flex-col gap-2 lg:gap-3 items-center lg:items-start text-center lg:text-left">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full self-start
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full self-center lg:self-start
                             border border-brand-500/30 bg-brand-500/10
                             text-brand-700 dark:text-white text-xs font-semibold select-none">
               <Sparkles className="w-3 h-3" />
