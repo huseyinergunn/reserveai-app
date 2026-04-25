@@ -35,21 +35,33 @@ export class SheetsService {
       mapped[this.idColumn] = data['id'];
     }
 
-    const row = headers.map((h) => mapped[h] ?? '');
+    const row     = headers.map((h) => mapped[h] ?? '');
+    const lastCol = headers.length > 0 ? this.colLetter(headers.length - 1) : 'Z';
 
-    const lastCol     = headers.length > 0 ? this.colLetter(headers.length - 1) : 'Z';
-    const appendRange = this.cfg.tableName
-      ? this.cfg.tableName
-      : `${this.cfg.sheetName}!A1:${lastCol}1`;
+    // Find the actual last non-empty row by reading column A so we always
+    // write immediately after the last filled row — no gaps from deleted rows.
+    const colARes = await sheets.spreadsheets.values.get({
+      spreadsheetId: this.cfg.spreadsheetId,
+      range:         `${this.cfg.sheetName}!A:A`,
+    });
+    const colAValues = (colARes.data.values ?? []) as string[][];
+    // Walk backwards to find the last row that has any value in column A
+    let lastFilledRow = 0;
+    for (let i = colAValues.length - 1; i >= 0; i--) {
+      if (colAValues[i]?.[0]?.trim()) {
+        lastFilledRow = i + 1; // convert to 1-indexed
+        break;
+      }
+    }
+    const targetRow = lastFilledRow + 1;
 
-    await sheets.spreadsheets.values.append({
+    await sheets.spreadsheets.values.update({
       spreadsheetId:    this.cfg.spreadsheetId,
-      range:            appendRange,
-      valueInputOption: 'RAW',       // keeps strings as-is, no date auto-conversion
-      insertDataOption: 'INSERT_ROWS',
+      range:            `${this.cfg.sheetName}!A${targetRow}:${lastCol}${targetRow}`,
+      valueInputOption: 'RAW',
       requestBody:      { values: [row] },
     });
-    logger.info(`[SheetsService] Row appended — id=${data['id'] ?? '?'}`);
+    logger.info(`[SheetsService] Row appended at row ${targetRow} — id=${data['id'] ?? '?'}`);
   }
 
   /**
