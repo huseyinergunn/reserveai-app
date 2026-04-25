@@ -27,5 +27,5 @@ export function errorHandler(
   }
 
   logger.error('[Unhandled Error]', { message: err.message, stack: err.stack });
-  res.status(500).json({ error: 'An unexpected error occurred.' });
+  res.status(500).json({ error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
 }

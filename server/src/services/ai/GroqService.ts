@@ -159,7 +159,8 @@ RANDEVU SÜRECİ:
 4. Randevudan önce otomatik hatırlatma e-postası gönderilir
 
 İPTAL:
-- Onay e-postasındaki "İptal Et" linkine tıklanır
+- Yöntem 1: Onay e-postasındaki "Randevuyu İptal Et" linkine tıklanır
+- Yöntem 2: Bu sayfadaki "Randevumu Sorgula" sekmesine gidilir, e-posta adresi girilir ve randevunun yanındaki "İptal Talebi Gönder" butonuna tıklanır — e-posta adresinize iptal bağlantısı gönderilir, o bağlantıya tıklayınca iptal tamamlanır
 - Takvim etkinliği otomatik silinir ve işletmeye bildirim gider
 
 ÖNEMLİ:

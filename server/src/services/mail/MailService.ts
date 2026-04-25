@@ -37,16 +37,16 @@ export class MailService {
     const display = formatDisplayDateTime(submission.dateTime);
     await this.send({
       to: submission.email,
-      subject: `Appointment Request Received for ${display}`,
+      subject: `Randevu Talebiniz Alındı — ${display}`,
       html: `
-        <p>Dear ${escapeHtml(submission.name)},</p>
-        <p>Thanks for requesting an appointment. We will review and get back to you shortly.</p>
+        <p>Merhaba ${escapeHtml(submission.name)},</p>
+        <p>Randevu talebinizi aldık. En kısa sürede değerlendirip size geri döneceğiz.</p>
         <table style="border-collapse:collapse">
-          <tr><td><strong>Name</strong></td><td>${escapeHtml(submission.name)}</td></tr>
-          <tr><td><strong>Email</strong></td><td>${escapeHtml(submission.email)}</td></tr>
-          <tr><td><strong>Date & Time</strong></td><td>${escapeHtml(display)}</td></tr>
-          <tr><td><strong>Enquiry</strong></td><td>${escapeHtml(submission.enquiry)}</td></tr>
-          <tr><td><strong>Submitted at</strong></td><td>${escapeHtml(submission.submittedAt)}</td></tr>
+          <tr><td><strong>Ad Soyad</strong></td><td>${escapeHtml(submission.name)}</td></tr>
+          <tr><td><strong>E-posta</strong></td><td>${escapeHtml(submission.email)}</td></tr>
+          <tr><td><strong>Tarih &amp; Saat</strong></td><td>${escapeHtml(display)}</td></tr>
+          <tr><td><strong>Konu</strong></td><td>${escapeHtml(submission.enquiry)}</td></tr>
+          <tr><td><strong>Gönderilme Zamanı</strong></td><td>${escapeHtml(submission.submittedAt)}</td></tr>
         </table>`,
     });
     logger.info(`[MailService] Receipt → ${submission.email}`);
@@ -85,7 +85,7 @@ export class MailService {
 
     await this.send({
       to:      this.cfg.adminEmail,
-      subject: `${meta.prefix}New Appointment Request — ${payload.bookingReference}`,
+      subject: `${meta.prefix}Yeni Randevu Talebi — ${payload.bookingReference}`,
       html: `
         ${urgencyBanner}
         <h2>Yeni Randevu Talebi</h2>
@@ -152,11 +152,12 @@ export class MailService {
     const display = formatDisplayDateTime(submission.dateTime);
     await this.send({
       to: submission.email,
-      subject: `Appointment Request Rejected for ${display}`,
+      subject: `Randevu Talebiniz Reddedildi — ${display}`,
       html: `
-        <p>Dear ${escapeHtml(submission.name)},</p>
-        <p>Unfortunately, we cannot schedule the requested appointment at the requested time.</p>
-        <p>Kind regards</p>`,
+        <p>Merhaba ${escapeHtml(submission.name)},</p>
+        <p>Maalesef talep ettiğiniz tarih ve saatte randevu oluşturamıyoruz.</p>
+        <p>Farklı bir tarih için yeniden talepte bulunabilirsiniz.</p>
+        <p>İyi günler dileriz.</p>`,
     });
     logger.info(`[MailService] Rejection → ${submission.email}`);
   }
@@ -171,13 +172,13 @@ export class MailService {
     const display = formatDisplayDateTime(params.dateTime);
     await this.send({
       to: params.email,
-      subject: `Appointment Cancelled — ${params.bookingReference}`,
+      subject: `Randevunuz İptal Edildi — ${params.bookingReference}`,
       html: `
-        <p>Dear ${escapeHtml(params.name)},</p>
-        <p>Your appointment scheduled for <strong>${escapeHtml(display)}</strong> has been successfully cancelled.</p>
-        <p>Booking reference: <strong>${escapeHtml(params.bookingReference)}</strong></p>
-        <p>If you wish to book a new appointment, please visit our scheduling page.</p>
-        <p>Kind regards</p>`,
+        <p>Merhaba ${escapeHtml(params.name)},</p>
+        <p><strong>${escapeHtml(display)}</strong> tarihli randevunuz başarıyla iptal edildi.</p>
+        <p>Rezervasyon referansı: <strong>${escapeHtml(params.bookingReference)}</strong></p>
+        <p>Yeni bir randevu almak isterseniz randevu sayfamızı ziyaret edebilirsiniz.</p>
+        <p>İyi günler dileriz.</p>`,
     });
     logger.info(`[MailService] Cancellation (user) → ${params.email} (ref=${params.bookingReference})`);
   }
@@ -192,19 +193,60 @@ export class MailService {
     const display = formatDisplayDateTime(params.dateTime);
     await this.send({
       to: this.cfg.adminEmail,
-      subject: `Appointment Cancelled — ${params.bookingReference}`,
+      subject: `Randevu İptal Edildi — ${params.bookingReference}`,
       html: `
-        <h2>Appointment Cancelled</h2>
-        <p>The following appointment has been cancelled by the user:</p>
+        <h2>Randevu İptal Edildi</h2>
+        <p>Aşağıdaki randevu kullanıcı tarafından iptal edildi:</p>
         <table style="border-collapse:collapse;margin-bottom:16px">
-          <tr><td><strong>Name</strong></td><td>${escapeHtml(params.name)}</td></tr>
-          <tr><td><strong>Email</strong></td><td>${escapeHtml(params.email)}</td></tr>
-          <tr><td><strong>Date & Time</strong></td><td>${escapeHtml(display)}</td></tr>
-          <tr><td><strong>Booking Ref</strong></td><td>${escapeHtml(params.bookingReference)}</td></tr>
+          <tr><td><strong>Ad Soyad</strong></td><td>${escapeHtml(params.name)}</td></tr>
+          <tr><td><strong>E-posta</strong></td><td>${escapeHtml(params.email)}</td></tr>
+          <tr><td><strong>Tarih &amp; Saat</strong></td><td>${escapeHtml(display)}</td></tr>
+          <tr><td><strong>Rezervasyon Ref</strong></td><td>${escapeHtml(params.bookingReference)}</td></tr>
         </table>
-        <p>The calendar event has been removed and the time slot is now available again.</p>`,
+        <p>Takvim etkinliği silindi ve saat dilimi tekrar müsait hale geldi.</p>`,
     });
     logger.info(`[MailService] Cancellation (admin) → ${this.cfg.adminEmail} (ref=${params.bookingReference})`);
+  }
+
+  /** Sends the cancellation link to the user on request from the status page. */
+  async sendCancelLinkEmail(params: {
+    name: string;
+    email: string;
+    dateTime: string;
+    bookingReference: string;
+    cancelUrl: string;
+  }): Promise<void> {
+    const display = formatDisplayDateTime(params.dateTime);
+    await this.send({
+      to: params.email,
+      subject: `Randevu İptal Bağlantınız — ${params.bookingReference}`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+<table width="600" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+<tr><td style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:32px 40px;text-align:center">
+  <h1 style="color:white;margin:0;font-size:22px;font-weight:700">🚫 Randevu İptal Talebi</h1>
+</td></tr>
+<tr><td style="padding:32px 40px">
+  <p style="color:#374151;font-size:16px;margin:0 0 16px">Merhaba <strong>${escapeHtml(params.name)}</strong>,</p>
+  <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px">
+    <strong>${escapeHtml(display)}</strong> tarihli randevunuz için iptal bağlantınız aşağıdadır.
+    Bu bağlantıya tıklayarak randevunuzu iptal edebilirsiniz.
+  </p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border-radius:10px;border:1px solid #fecaca;overflow:hidden;margin:0 0 24px">
+    <tr><td style="padding:12px 16px;font-weight:600;color:#dc2626;width:160px">📅 Tarih &amp; Saat</td>
+        <td style="padding:12px 16px;color:#1e293b">${escapeHtml(display)}</td></tr>
+    <tr><td style="padding:12px 16px;font-weight:600;color:#dc2626">🔖 Referans</td>
+        <td style="padding:12px 16px;color:#1e293b;font-family:monospace">${escapeHtml(params.bookingReference)}</td></tr>
+  </table>
+  <a href="${params.cancelUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
+    🚫 Randevuyu İptal Et
+  </a>
+  <p style="color:#94a3b8;font-size:12px;margin:20px 0 0">Bu bağlantıyı siz talep etmediyseniz bu e-postayı görmezden gelebilirsiniz.</p>
+</td></tr>
+</table></td></tr></table></body></html>`,
+    });
+    logger.info(`[MailService] Cancel link → ${params.email} (ref=${params.bookingReference})`);
   }
 
   // ---------------------------------------------------------------------------

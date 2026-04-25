@@ -56,7 +56,7 @@ export class FormController {
       res.status(200).json({
         status: 'declined',
         message:
-          "Thanks for your enquiry but it may not need an appointment. Please feel free to email me instead at user@example.com.",
+          "Talebiniz için teşekkürler, ancak bu konu randevu kapsamında değerlendirilemedi. Doğrudan e-posta ile iletişime geçebilirsiniz.",
       });
       return;
     }
@@ -141,7 +141,7 @@ export class FormController {
     res.status(200).json({
       status: 'submitted',
       message:
-        'Thank you! A confirmation has been sent to your inbox. We will get back to you shortly.',
+        'Teşekkürler! Alındı bilgisi e-posta adresinize gönderildi. En kısa sürede geri döneceğiz.',
       summary: { name, dateTime: submission.dateTime, enquiry, bookingReference },
     });
   };
@@ -181,6 +181,44 @@ export class FormController {
       'name dateTime status bookingReference submittedAt',
     ).sort({ submittedAt: -1 }).lean();
     res.status(200).json({ appointments: docs });
+  };
+
+  requestCancellation = async (req: Request, res: Response): Promise<void> => {
+    const { email, bookingReference } = req.body as { email?: string; bookingReference?: string };
+    if (!email || !email.includes('@') || !bookingReference) {
+      res.status(400).json({ error: 'E-posta ve rezervasyon referansı gereklidir.' });
+      return;
+    }
+    const safe = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const doc = await AppointmentModel.findOne({
+      email:            { $regex: new RegExp(`^${safe}$`, 'i') },
+      bookingReference: bookingReference.trim(),
+      status:           { $in: ['pending', 'approved'] },
+    }).lean();
+
+    if (!doc) {
+      res.status(404).json({ error: 'Randevu bulunamadı veya zaten iptal edilmiş.' });
+      return;
+    }
+
+    const appBaseUrl = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+    const cancelUrl  = `${appBaseUrl}/api/approval/cancel/${(doc as { cancellationToken: string }).cancellationToken}`;
+
+    try {
+      await this.deps.mailService.sendCancelLinkEmail({
+        name:             (doc as { name: string }).name,
+        email:            (doc as { email: string }).email,
+        dateTime:         (doc as { dateTime: string }).dateTime,
+        bookingReference: (doc as { bookingReference: string }).bookingReference,
+        cancelUrl,
+      });
+    } catch (err) {
+      logger.error('[FormController] sendCancelLinkEmail failed:', err);
+      res.status(502).json({ error: 'E-posta gönderilemedi. Lütfen tekrar deneyin.' });
+      return;
+    }
+
+    res.status(200).json({ status: 'sent' });
   };
 
   // ---------------------------------------------------------------------------

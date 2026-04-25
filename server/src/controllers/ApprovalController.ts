@@ -49,7 +49,7 @@ export class ApprovalController {
 
     const doc = await AppointmentModel.findOne({ approvalToken: token });
     if (!doc) {
-      res.status(404).json({ error: 'Approval link is invalid or has expired.' });
+      res.status(404).json({ error: 'Onay bağlantısı geçersiz veya süresi dolmuş.' });
       return;
     }
 
@@ -386,7 +386,7 @@ export class ApprovalController {
       });
     } catch (err) {
       logger.error('[ApprovalController] Approve failed:', err);
-      res.status(502).json({ error: 'Failed to create calendar event. Please try again.' });
+      res.status(502).json({ error: 'Takvim etkinliği oluşturulamadı. Lütfen tekrar deneyin.' });
     }
   }
 
@@ -405,7 +405,7 @@ export class ApprovalController {
       res.status(200).json({ status: 'rejected' });
     } catch (err) {
       logger.error('[ApprovalController] Reject failed:', err);
-      res.status(502).json({ error: 'Failed to send rejection email. Please try again.' });
+      res.status(502).json({ error: 'Red e-postası gönderilemedi. Lütfen tekrar deneyin.' });
     }
   }
 

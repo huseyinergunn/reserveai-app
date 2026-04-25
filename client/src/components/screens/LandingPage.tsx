@@ -84,6 +84,7 @@ function StatusFormInline() {
   const [results, setResults]   = useState<AppointmentStatusItem[] | null>(null);
   const [error, setError]       = useState('');
   const [searched, setSearched] = useState(false);
+  const [cancelState, setCancelState] = useState<Record<string, 'idle' | 'loading' | 'sent' | 'error'>>({});
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -103,6 +104,16 @@ function StatusFormInline() {
       setError(e.error ?? 'Sorgulama sırasında bir hata oluştu.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCancelRequest(bookingReference: string) {
+    setCancelState((s) => ({ ...s, [bookingReference]: 'loading' }));
+    try {
+      await api.requestCancellation(email.trim(), bookingReference);
+      setCancelState((s) => ({ ...s, [bookingReference]: 'sent' }));
+    } catch {
+      setCancelState((s) => ({ ...s, [bookingReference]: 'error' }));
     }
   }
 
@@ -188,6 +199,33 @@ function StatusFormInline() {
                     Randevunuz onaylandı. Takvim davetiyesi e-posta adresinize gönderildi.
                   </p>
                 )}
+                {(apt.status === 'pending' || apt.status === 'approved') && (() => {
+                  const cs = cancelState[apt.bookingReference] ?? 'idle';
+                  if (cs === 'sent') return (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                      İptal bağlantısı e-posta adresinize gönderildi.
+                    </p>
+                  );
+                  return (
+                    <div className="pt-1 space-y-1">
+                      <button
+                        onClick={() => handleCancelRequest(apt.bookingReference)}
+                        disabled={cs === 'loading'}
+                        className="text-xs text-red-500 dark:text-red-400 border border-red-200 dark:border-red-500/30
+                                   rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-500/10
+                                   disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                      >
+                        {cs === 'loading'
+                          ? <><span className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" /> Gönderiliyor…</>
+                          : '🚫 İptal Talebi Gönder'}
+                      </button>
+                      {cs === 'error' && (
+                        <p className="text-[11px] text-red-500">Gönderilemedi, tekrar deneyin.</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -299,6 +337,12 @@ export function LandingPage() {
   const [tab, setTab]             = useState<Tab>('booking');
   const [formFocused, setFormFocused] = useState(false);
   const bookingAreaRef            = useRef<HTMLDivElement>(null);
+
+  // Warm up the Render server on page load so the first form submit never cold-starts
+  useEffect(() => {
+    const base = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+    fetch(`${base}/health`, { method: 'GET' }).catch(() => {/* silent */});
+  }, []);
 
   useEffect(() => {
     function onFocusIn(e: FocusEvent) {

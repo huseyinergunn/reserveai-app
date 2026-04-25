@@ -21,7 +21,7 @@ export const ADMIN_TOKEN_KEY = 'admin_jwt';
 const http = axios.create({
   baseURL: `${BASE_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15_000,
+  timeout: 40_000,
 });
 
 http.interceptors.response.use(
@@ -31,7 +31,7 @@ http.interceptors.response.use(
     return Promise.reject(
       data && typeof data === 'object'
         ? data
-        : { error: 'Network error. Please check your connection and try again.' },
+        : { error: 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.' },
     );
   },
 );
@@ -69,6 +69,12 @@ export const api = {
   getAppointmentStatus(email: string): Promise<{ appointments: AppointmentStatusItem[] }> {
     return http
       .get<{ appointments: AppointmentStatusItem[] }>('/form/status', { params: { email } })
+      .then((r) => r.data);
+  },
+
+  requestCancellation(email: string, bookingReference: string): Promise<{ status: string }> {
+    return http
+      .post<{ status: string }>('/form/cancel-request', { email, bookingReference })
       .then((r) => r.data);
   },
 

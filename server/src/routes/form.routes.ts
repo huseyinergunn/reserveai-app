@@ -19,5 +19,8 @@ export function createFormRouter(controller: FormController): Router {
   // Public status lookup — customer queries by email (no auth)
   router.get('/status', controller.getStatusByEmail);
 
+  // Send cancellation link email to user
+  router.post('/cancel-request', controller.requestCancellation);
+
   return router;
 }
