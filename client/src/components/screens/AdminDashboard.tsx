@@ -433,8 +433,10 @@ export function AdminDashboard() {
       <BulkActionBar
         count={selected.size}
         loading={bulkLoading}
+        archiveMode={archiveMode}
         onCancel={() => handleBulkAction('cancel')}
         onComplete={() => handleBulkAction('complete')}
+        onDelete={() => handleBulkAction('delete')}
         onClear={clearSelected}
       />
     </div>

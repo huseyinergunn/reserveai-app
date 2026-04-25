@@ -266,8 +266,26 @@ export class AdminController {
     if (!Array.isArray(ids) || ids.length === 0) {
       res.status(400).json({ error: 'ids array is required.' }); return;
     }
-    if (action !== 'cancel' && action !== 'complete') {
-      res.status(400).json({ error: 'action must be cancel or complete.' }); return;
+    if (action !== 'cancel' && action !== 'complete' && action !== 'delete') {
+      res.status(400).json({ error: 'action must be cancel, complete or delete.' }); return;
+    }
+
+    // Hard delete: only archive statuses allowed
+    if (action === 'delete') {
+      const ARCHIVE_STATUSES = ['rejected', 'cancelled', 'completed'];
+      const validIds = (ids as string[]).filter((id) => mongoose.Types.ObjectId.isValid(id));
+      const docs = await AppointmentModel.find({
+        _id:    { $in: validIds },
+        status: { $in: ARCHIVE_STATUSES },
+      }).lean();
+      const deletableIds = docs.map((d) => (d._id as { toString(): string }).toString());
+      const skipped = validIds.length - deletableIds.length;
+      if (deletableIds.length > 0) {
+        await AppointmentModel.deleteMany({ _id: { $in: deletableIds } });
+      }
+      logger.info(`[AdminController] bulk delete: ${deletableIds.length} deleted, ${skipped} skipped (wrong status)`);
+      res.status(200).json({ processed: deletableIds.length, failed: skipped, results: [] });
+      return;
     }
 
     const results: { id: string; ok: boolean; message?: string }[] = [];

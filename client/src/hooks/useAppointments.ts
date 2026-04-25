@@ -129,7 +129,7 @@ export function useAppointments() {
 
   // ── Bulk action ──────────────────────────────────────────────────────────
 
-  const handleBulkAction = useCallback(async (action: 'cancel' | 'complete') => {
+  const handleBulkAction = useCallback(async (action: 'cancel' | 'complete' | 'delete') => {
     if (state.selected.size === 0) return;
     dispatch({ type: 'BULK_START' });
     try {

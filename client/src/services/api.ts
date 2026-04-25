@@ -190,7 +190,7 @@ export const adminApi = {
     return adminHttp().post<{ status: string }>(`/appointments/${id}/complete`).then((r) => r.data);
   },
 
-  bulkAction(ids: string[], action: 'cancel' | 'complete'): Promise<{ processed: number; failed: number }> {
+  bulkAction(ids: string[], action: 'cancel' | 'complete' | 'delete'): Promise<{ processed: number; failed: number }> {
     return adminHttp()
       .post<{ processed: number; failed: number }>('/appointments/bulk', { ids, action })
       .then((r) => r.data);
