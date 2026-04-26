@@ -232,36 +232,40 @@ function MobileCard({ apt, isSelected, isActing, actingAction, isBusy, onToggle,
 // Local filter helpers
 // ---------------------------------------------------------------------------
 
-type DateFilter = 'all' | 'today' | 'tomorrow' | 'week';
+type DateFilter    = 'all' | 'today' | 'tomorrow' | 'week';
+type UrgencyFilter = 'none' | 'CRITICAL' | 'HIGH';
 
 function applyLocalFilters(
   appointments: AdminAppointment[],
   search: string,
   dateFilter: DateFilter,
-  urgentOnly: boolean,
+  urgencyFilter: UrgencyFilter,
 ): AdminAppointment[] {
   const now         = DateTime.now().setZone(TIMEZONE);
   const todayStr    = now.toFormat('yyyy-MM-dd');
   const tomorrowStr = now.plus({ days: 1 }).toFormat('yyyy-MM-dd');
   const weekEndStr  = now.endOf('week').toFormat('yyyy-MM-dd');
 
-  return appointments.filter((apt) => {
+  let result = appointments.filter((apt) => {
     if (search) {
       const q = search.toLowerCase();
       if (!apt.name.toLowerCase().includes(q) && !apt.email.toLowerCase().includes(q)) return false;
     }
     if (dateFilter !== 'all') {
       const dayStr = DateTime.fromISO(apt.dateTime, { zone: TIMEZONE }).toFormat('yyyy-MM-dd');
-      if (dateFilter === 'today'    && dayStr !== todayStr)                      return false;
-      if (dateFilter === 'tomorrow' && dayStr !== tomorrowStr)                   return false;
+      if (dateFilter === 'today'    && dayStr !== todayStr)                        return false;
+      if (dateFilter === 'tomorrow' && dayStr !== tomorrowStr)                     return false;
       if (dateFilter === 'week'     && (dayStr < todayStr || dayStr > weekEndStr)) return false;
     }
-    if (urgentOnly) {
-      const u = apt.triage?.urgency;
-      if (u !== 'CRITICAL' && u !== 'HIGH') return false;
-    }
+    if (urgencyFilter !== 'none' && apt.triage?.urgency !== urgencyFilter) return false;
     return true;
   });
+
+  if (urgencyFilter !== 'none') {
+    result = [...result].sort((a, b) => (b.triage?.clarity ?? 0) - (a.triage?.clarity ?? 0));
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,21 +279,22 @@ const DATE_OPTS: { key: DateFilter; label: string }[] = [
 ];
 
 interface FilterToolbarProps {
-  search:         string;
-  dateFilter:     DateFilter;
-  urgentOnly:     boolean;
-  urgentCount:    number;
-  onSearchChange: (v: string) => void;
-  onDateFilter:   (v: DateFilter) => void;
-  onUrgentToggle: () => void;
-  onClearAll:     () => void;
+  search:          string;
+  dateFilter:      DateFilter;
+  urgencyFilter:   UrgencyFilter;
+  criticalCount:   number;
+  highCount:       number;
+  onSearchChange:  (v: string) => void;
+  onDateFilter:    (v: DateFilter) => void;
+  onUrgencyFilter: (v: UrgencyFilter) => void;
+  onClearAll:      () => void;
 }
 
 function FilterToolbar({
-  search, dateFilter, urgentOnly, urgentCount,
-  onSearchChange, onDateFilter, onUrgentToggle, onClearAll,
+  search, dateFilter, urgencyFilter, criticalCount, highCount,
+  onSearchChange, onDateFilter, onUrgencyFilter, onClearAll,
 }: FilterToolbarProps) {
-  const hasFilters = !!search || dateFilter !== 'all' || urgentOnly;
+  const hasFilters = !!search || dateFilter !== 'all' || urgencyFilter !== 'none';
 
   return (
     <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap items-center gap-2">
@@ -332,19 +337,35 @@ function FilterToolbar({
         ))}
       </div>
 
-      {/* Urgent filter — only shown when there are urgent appointments */}
-      {urgentCount > 0 && (
+      {/* CRITICAL filter — pulsing red */}
+      {criticalCount > 0 && (
         <button
-          onClick={onUrgentToggle}
+          onClick={() => onUrgencyFilter(urgencyFilter === 'CRITICAL' ? 'none' : 'CRITICAL')}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
-            urgentOnly
+            urgencyFilter === 'CRITICAL'
               ? 'bg-red-500 text-white shadow-sm'
               : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-300/60 dark:border-red-500/30 hover:bg-red-500/20',
           )}
         >
+          <AlertTriangle className={cn('w-3 h-3', urgencyFilter !== 'CRITICAL' && 'animate-pulse')} />
+          Kritik ({criticalCount})
+        </button>
+      )}
+
+      {/* HIGH filter — solid orange */}
+      {highCount > 0 && (
+        <button
+          onClick={() => onUrgencyFilter(urgencyFilter === 'HIGH' ? 'none' : 'HIGH')}
+          className={cn(
+            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
+            urgencyFilter === 'HIGH'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-300/60 dark:border-amber-500/30 hover:bg-amber-500/20',
+          )}
+        >
           <AlertTriangle className="w-3 h-3" />
-          Acil ({urgentCount})
+          Önemli ({highCount})
         </button>
       )}
 
@@ -386,20 +407,21 @@ export function AppointmentTable({
   filterTabs, activeFilter, onFilterChange,
   onToggleSelect, onToggleSelectAll, onAction, onDrawer,
 }: AppointmentTableProps) {
-  const [search, setSearch]         = useState('');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
-  const [urgentOnly, setUrgentOnly] = useState(false);
+  const [search, setSearch]               = useState('');
+  const [dateFilter, setDateFilter]       = useState<DateFilter>('all');
+  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('none');
 
-  const displayed    = applyLocalFilters(appointments, search, dateFilter, urgentOnly);
-  const urgentCount  = appointments.filter((a) => a.triage?.urgency === 'CRITICAL' || a.triage?.urgency === 'HIGH').length;
-  const isBusy       = actingIds.size > 0 || bulkLoading;
-  const allSelected  = displayed.length > 0 && displayed.every((a) => selected.has(a._id));
-  const someSelected = displayed.some((a) => selected.has(a._id));
+  const displayed     = applyLocalFilters(appointments, search, dateFilter, urgencyFilter);
+  const criticalCount = appointments.filter((a) => a.triage?.urgency === 'CRITICAL').length;
+  const highCount     = appointments.filter((a) => a.triage?.urgency === 'HIGH').length;
+  const isBusy        = actingIds.size > 0 || bulkLoading;
+  const allSelected   = displayed.length > 0 && displayed.every((a) => selected.has(a._id));
+  const someSelected  = displayed.some((a) => selected.has(a._id));
 
   function clearLocalFilters() {
     setSearch('');
     setDateFilter('all');
-    setUrgentOnly(false);
+    setUrgencyFilter('none');
   }
 
   // ── Empty state (no appointments for this status filter) ─────────────────
@@ -434,11 +456,12 @@ export function AppointmentTable({
       <FilterToolbar
         search={search}
         dateFilter={dateFilter}
-        urgentOnly={urgentOnly}
-        urgentCount={urgentCount}
+        urgencyFilter={urgencyFilter}
+        criticalCount={criticalCount}
+        highCount={highCount}
         onSearchChange={setSearch}
         onDateFilter={setDateFilter}
-        onUrgentToggle={() => setUrgentOnly((v) => !v)}
+        onUrgencyFilter={setUrgencyFilter}
         onClearAll={clearLocalFilters}
       />
 

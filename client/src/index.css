@@ -256,27 +256,6 @@
       0 0 0 1px rgba(255, 255, 255, 0.07),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
-  /* Işık süzmesi — hover'da kart yüzeyinden geçen beyaz ışın */
-  .form-card-premium::before {
-    content: '';
-    position: absolute;
-    top: -10%; left: -60%;
-    width: 45%;
-    height: 120%;
-    background: linear-gradient(
-      to right,
-      transparent 0%,
-      rgba(255, 255, 255, 0.13) 50%,
-      transparent 100%
-    );
-    transform: skewX(-18deg);
-    pointer-events: none;
-    z-index: 102;
-  }
-  .form-card-premium:hover::before {
-    animation: sheen 0.65s ease-out forwards;
-  }
-
   /* ── Form grain — mikro doku katmanı ───────────────────────────────────── */
   .form-grain::after {
     content: '';
@@ -481,7 +460,3 @@
   50%       { opacity: 1;    transform: scale(1.12); }
 }
 
-@keyframes sheen {
-  0%   { left: -60%; }
-  100% { left: 160%; }
-}

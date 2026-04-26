@@ -13,6 +13,7 @@ import {
   createContext,
   useContext,
   useReducer,
+  useEffect,
   type Dispatch,
   type ReactNode,
 } from 'react';
@@ -169,6 +170,43 @@ function reducer(state: AppState, action: AppAction): AppState {
 }
 
 // ---------------------------------------------------------------------------
+// sessionStorage draft persistence
+// ---------------------------------------------------------------------------
+
+const DRAFT_KEY = 'reserveai_form_draft';
+
+type DraftState = Pick<AppState, 'screenState' | 'step1Data' | 'extractedData'>;
+
+function loadDraft(): AppState | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as DraftState;
+    if (draft.screenState?.screen !== 'form') return null;
+    return { ...INITIAL_STATE, ...draft };
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(state: AppState): void {
+  try {
+    if (state.screenState.screen !== 'form') {
+      sessionStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    const draft: DraftState = {
+      screenState:   state.screenState,
+      step1Data:     state.step1Data,
+      extractedData: state.extractedData,
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // storage full or unavailable — silently ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Context + Provider
 // ---------------------------------------------------------------------------
 
@@ -178,7 +216,12 @@ const AppointmentCtx = createContext<{
 } | null>(null);
 
 export function AppointmentProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, undefined, () => loadDraft() ?? INITIAL_STATE);
+
+  useEffect(() => {
+    saveDraft(state);
+  }, [state]);
+
   return (
     <AppointmentCtx.Provider value={{ state, dispatch }}>
       {children}
