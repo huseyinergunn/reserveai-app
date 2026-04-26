@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { AdminController } from '../controllers/AdminController';
 import { requireAdminAuth } from '../middleware/auth.middleware';
+import { analyzeLimiter } from '../middleware/rateLimiter';
 
 export function createAdminRouter(controller: AdminController): Router {
   const router = Router();
@@ -13,7 +14,7 @@ export function createAdminRouter(controller: AdminController): Router {
 
   router.get('/appointments',                   controller.getAppointments);
   router.get('/stats',                          controller.getStats);
-  router.post('/analyze',                       controller.analyzeData);
+  router.post('/analyze',        analyzeLimiter, controller.analyzeData);
   router.post('/appointments/bulk',             controller.bulkAction);
   router.post('/appointments/:id/approve',      controller.approveAppointment);
   router.post('/appointments/:id/reject',       controller.rejectAppointment);

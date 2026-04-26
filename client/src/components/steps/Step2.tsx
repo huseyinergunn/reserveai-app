@@ -57,13 +57,13 @@ export function Step2() {
       {/* Koşullar kutusu */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden inset-deep">
         {/* Başlık satırı */}
-        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 sticky top-0 inset-header">
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 inset-header">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500">
             Randevu Alma Hüküm &amp; Koşulları
           </p>
         </div>
         {/* İçerik */}
-        <div className="p-4 space-y-4 max-h-52 overflow-y-auto scrollbar-thin">
+        <div className="p-4 space-y-4">
           {TERMS_SECTIONS.map((section) => (
             <div key={section.title}>
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{section.title}</p>

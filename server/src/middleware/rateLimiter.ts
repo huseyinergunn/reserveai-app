@@ -48,3 +48,13 @@ export const analyzeLimiter = rateLimit({
   message:        'Çok fazla analiz isteği, lütfen bekleyin.',
   handler:        jsonHandler,
 });
+
+// Approval / cancel token endpoints: 20 / 15 dk
+export const approvalLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            isDev ? 0 : 20,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  message:        'Çok fazla istek gönderildi, lütfen birkaç dakika bekleyin.',
+  handler:        jsonHandler,
+});

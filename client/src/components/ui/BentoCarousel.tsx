@@ -70,9 +70,9 @@ function SlideTriager() {
 
       <Card delay={0.22} className="p-2.5 flex flex-col justify-center gap-1.5">
         {[
-          { label: 'CRITICAL', cls: 'bg-red-500/10 text-red-600 dark:text-red-400' },
-          { label: 'HIGH',     cls: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
-          { label: 'NORMAL',   cls: 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400' },
+          { label: 'Kritik', cls: 'bg-red-500/10 text-red-600 dark:text-red-400' },
+          { label: 'Yüksek', cls: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+          { label: 'Normal',  cls: 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400' },
         ].map(({ label, cls }) => (
           <span key={label} className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-center ${cls}`}>
             {label}

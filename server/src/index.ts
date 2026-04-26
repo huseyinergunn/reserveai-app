@@ -5,7 +5,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 
 import { logger } from './utils/logger';
-import { globalLimiter, formSubmitLimiter, chatLimiter, analyzeLimiter } from './middleware/rateLimiter';
+import { globalLimiter, formSubmitLimiter, chatLimiter, approvalLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 
 import { createAiService } from './services/ai/AiServiceFactory';
@@ -154,11 +154,10 @@ app.use(globalLimiter);
 const chatController = new ChatController({ aiService });
 
 // Routes — specific limiters protect expensive AI endpoints
-app.use('/api/form',             formSubmitLimiter, createFormRouter(formController));
-app.use('/api/approval',                            createApprovalRouter(approvalController));
-app.use('/api/admin',                               createAdminRouter(adminController));
-app.use('/api/admin/analyze',    analyzeLimiter);   // stricter limit on the AI analysis endpoint
-app.use('/api/chat',             chatLimiter,        createChatRouter(chatController));
+app.use('/api/form',     formSubmitLimiter, createFormRouter(formController));
+app.use('/api/approval', approvalLimiter,  createApprovalRouter(approvalController));
+app.use('/api/admin',                      createAdminRouter(adminController));
+app.use('/api/chat',     chatLimiter,      createChatRouter(chatController));
 
 app.get('/health', (_req, res) =>
   res.json({ status: 'ok', timestamp: new Date().toISOString() }),
