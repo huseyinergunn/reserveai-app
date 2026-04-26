@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import {
   Bot, CalendarCheck, Zap, Sparkles, CheckCircle2, Clock,
   Mail, Search, AlertTriangle,
@@ -336,7 +337,36 @@ type Tab = 'booking' | 'status';
 export function LandingPage() {
   const [tab, setTab]             = useState<Tab>('booking');
   const [formFocused, setFormFocused] = useState(false);
+  const [showFAB, setShowFAB]     = useState(false);
   const bookingAreaRef            = useRef<HTMLDivElement>(null);
+
+  // ── Parallax mouse tracking ────────────────────────────────────────────────
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const springCfg = { stiffness: 35, damping: 20, mass: 0.8 };
+  const glow1X = useSpring(useTransform(rawX, [-1, 1], [-40, 40]), springCfg);
+  const glow1Y = useSpring(useTransform(rawY, [-1, 1], [-25, 25]), springCfg);
+  const glow2X = useSpring(useTransform(rawX, [-1, 1], [25, -25]), springCfg);
+  const glow2Y = useSpring(useTransform(rawY, [-1, 1], [18, -18]), springCfg);
+
+  function handleMouseMove(e: React.MouseEvent<HTMLElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    rawX.set((e.clientX - r.left) / r.width  * 2 - 1);
+    rawY.set((e.clientY - r.top)  / r.height * 2 - 1);
+  }
+  function handleMouseLeave() { rawX.set(0); rawY.set(0); }
+
+  // ── FAB — form görüş alanından çıkınca belir ───────────────────────────────
+  useEffect(() => {
+    const el = document.getElementById('action-area');
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setShowFAB(!entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Warm up the Render server on page load so the first form submit never cold-starts
   useEffect(() => {
@@ -391,6 +421,8 @@ export function LandingPage() {
       <section
         id="action-area"
         className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-3"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-10 items-start">
 
@@ -460,9 +492,15 @@ export function LandingPage() {
 
           {/* ── RIGHT: Glassmorphism form card ── */}
           <div className="relative">
-            {/* Ambient light leak — focus durumunda nefes alır */}
-            <div className={`absolute -inset-10 bg-brand-500/10 blur-[80px] rounded-full pointer-events-none transition-all duration-1000 ${formFocused ? 'glow-breathe' : ''}`} />
-            <div className={`absolute -bottom-8 -left-8 w-64 h-64 bg-violet-500/6 blur-[60px] rounded-full pointer-events-none transition-all duration-1000 ${formFocused ? 'glow-breathe' : ''}`} style={{ animationDelay: '1.5s' }} />
+            {/* Ambient light leak — parallax + focus breathe */}
+            <motion.div
+              className={`absolute -inset-10 bg-brand-500/10 blur-[80px] rounded-full pointer-events-none ${formFocused ? 'glow-breathe' : ''}`}
+              style={{ x: glow1X, y: glow1Y }}
+            />
+            <motion.div
+              className={`absolute -bottom-8 -left-8 w-64 h-64 bg-violet-500/6 blur-[60px] rounded-full pointer-events-none ${formFocused ? 'glow-breathe' : ''}`}
+              style={{ x: glow2X, y: glow2Y, animationDelay: '1.5s' }}
+            />
 
             {/* Card — ağır cam blok, jelly değil */}
             <div
@@ -525,6 +563,30 @@ export function LandingPage() {
       <div className={formFocused ? 'hidden' : ''}>
         <CustomerChat />
       </div>
+
+      {/* ── Floating Action Button — form görüş alanından çıkınca ────────── */}
+      <AnimatePresence>
+        {showFAB && (
+          <motion.button
+            key="fab"
+            initial={{ opacity: 0, scale: 0.6, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.6, y: 24 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+            onClick={() => document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="fixed bottom-6 right-6 lg:bottom-[5.5rem] z-50
+                       w-14 h-14 rounded-full
+                       flex items-center justify-center
+                       bg-brand-600 hover:bg-brand-500
+                       text-white animate-ai-glow"
+            style={{ boxShadow: '0 8px 32px rgba(37,99,235,0.50), 0 0 0 1px rgba(96,165,250,0.20)' }}
+            aria-label="Randevu Al"
+            title="Randevu Al"
+          >
+            <CalendarCheck className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

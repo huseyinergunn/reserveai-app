@@ -23,10 +23,14 @@ function Card({ className = '', delay = 0, children }: CardProps) {
       className={`rounded-3xl border border-slate-200/70 dark:border-slate-700/40
                   bg-white dark:bg-slate-800/50
                   shadow-[inset_0_1px_0_#fff] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${className}`}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 16, filter: 'blur(10px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       viewport={{ once: false, amount: 0.15 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 28, delay }}
+      transition={{
+        y:       { type: 'spring', stiffness: 380, damping: 28, delay },
+        opacity: { duration: 0.3, ease: 'easeOut', delay },
+        filter:  { duration: 0.45, ease: 'easeOut', delay },
+      }}
     >
       {children}
     </motion.div>
