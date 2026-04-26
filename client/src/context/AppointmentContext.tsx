@@ -173,7 +173,8 @@ function reducer(state: AppState, action: AppAction): AppState {
 // sessionStorage draft persistence
 // ---------------------------------------------------------------------------
 
-const DRAFT_KEY = 'reserveai_form_draft';
+const DRAFT_KEY         = 'reserveai_form_draft';
+const PRIVACY_EXIT_KEY  = 'reserveai_from_privacy';
 
 type DraftState = Pick<AppState, 'screenState' | 'step1Data' | 'extractedData'>;
 
@@ -206,6 +207,36 @@ function saveDraft(state: AppState): void {
   }
 }
 
+/**
+ * Decides whether to restore the draft on mount.
+ *
+ * Draft is kept only when:
+ *   1. The page was refreshed (navType === 'reload')
+ *   2. The user pressed browser Back (navType === 'back_forward')
+ *   3. The user navigated to /gizlilik and is returning (privacy exit flag)
+ *
+ * In all other cases (fresh navigation from home, direct URL entry) the draft
+ * is discarded so the form always starts blank.
+ */
+function getInitialState(): AppState {
+  const navEntry  = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  const navType   = navEntry?.type ?? 'navigate';
+
+  const isReload      = navType === 'reload';
+  const isBackForward = navType === 'back_forward';
+  const fromPrivacy   = sessionStorage.getItem(PRIVACY_EXIT_KEY) === 'true';
+
+  if (fromPrivacy) sessionStorage.removeItem(PRIVACY_EXIT_KEY);
+
+  if (isReload || isBackForward || fromPrivacy) {
+    return loadDraft() ?? INITIAL_STATE;
+  }
+
+  // Fresh navigation → clear any stale draft and start clean
+  sessionStorage.removeItem(DRAFT_KEY);
+  return INITIAL_STATE;
+}
+
 // ---------------------------------------------------------------------------
 // Context + Provider
 // ---------------------------------------------------------------------------
@@ -216,7 +247,7 @@ const AppointmentCtx = createContext<{
 } | null>(null);
 
 export function AppointmentProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => loadDraft() ?? INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, undefined, getInitialState);
 
   useEffect(() => {
     saveDraft(state);

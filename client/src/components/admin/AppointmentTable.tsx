@@ -232,19 +232,21 @@ function MobileCard({ apt, isSelected, isActing, actingAction, isBusy, onToggle,
 // Local filter helpers
 // ---------------------------------------------------------------------------
 
-type DateFilter    = 'all' | 'today' | 'tomorrow' | 'week';
-type UrgencyFilter = 'none' | 'CRITICAL' | 'HIGH';
+type DateFilter = 'all' | 'today' | 'tomorrow' | 'week';
 
 function applyLocalFilters(
   appointments: AdminAppointment[],
   search: string,
   dateFilter: DateFilter,
-  urgencyFilter: UrgencyFilter,
+  showCritical: boolean,
+  showHigh: boolean,
 ): AdminAppointment[] {
   const now         = DateTime.now().setZone(TIMEZONE);
   const todayStr    = now.toFormat('yyyy-MM-dd');
   const tomorrowStr = now.plus({ days: 1 }).toFormat('yyyy-MM-dd');
   const weekEndStr  = now.endOf('week').toFormat('yyyy-MM-dd');
+
+  const urgencyActive = showCritical || showHigh;
 
   let result = appointments.filter((apt) => {
     if (search) {
@@ -257,11 +259,14 @@ function applyLocalFilters(
       if (dateFilter === 'tomorrow' && dayStr !== tomorrowStr)                     return false;
       if (dateFilter === 'week'     && (dayStr < todayStr || dayStr > weekEndStr)) return false;
     }
-    if (urgencyFilter !== 'none' && apt.triage?.urgency !== urgencyFilter) return false;
+    if (urgencyActive) {
+      const u = apt.triage?.urgency;
+      if (!(showCritical && u === 'CRITICAL') && !(showHigh && u === 'HIGH')) return false;
+    }
     return true;
   });
 
-  if (urgencyFilter !== 'none') {
+  if (urgencyActive) {
     result = [...result].sort((a, b) => (b.triage?.clarity ?? 0) - (a.triage?.clarity ?? 0));
   }
 
@@ -279,23 +284,25 @@ const DATE_OPTS: { key: DateFilter; label: string }[] = [
 ];
 
 interface FilterToolbarProps {
-  search:          string;
-  dateFilter:      DateFilter;
-  urgencyFilter:   UrgencyFilter;
-  criticalCount:   number;
-  highCount:       number;
-  onSearchChange:  (v: string) => void;
-  onDateFilter:    (v: DateFilter) => void;
-  onUrgencyFilter: (v: UrgencyFilter) => void;
-  onClearAll:      () => void;
-  onResetView?:    () => void;
+  search:           string;
+  dateFilter:       DateFilter;
+  showCritical:     boolean;
+  showHigh:         boolean;
+  criticalCount:    number;
+  highCount:        number;
+  onSearchChange:   (v: string) => void;
+  onDateFilter:     (v: DateFilter) => void;
+  onToggleCritical: () => void;
+  onToggleHigh:     () => void;
+  onClearAll:       () => void;
+  onResetView?:     () => void;
 }
 
 function FilterToolbar({
-  search, dateFilter, urgencyFilter, criticalCount, highCount,
-  onSearchChange, onDateFilter, onUrgencyFilter, onClearAll, onResetView,
+  search, dateFilter, showCritical, showHigh, criticalCount, highCount,
+  onSearchChange, onDateFilter, onToggleCritical, onToggleHigh, onClearAll, onResetView,
 }: FilterToolbarProps) {
-  const hasFilters = !!search || dateFilter !== 'all' || urgencyFilter !== 'none';
+  const hasFilters = !!search || dateFilter !== 'all' || showCritical || showHigh;
 
   return (
     <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap items-center gap-2">
@@ -338,29 +345,29 @@ function FilterToolbar({
         ))}
       </div>
 
-      {/* CRITICAL filter — pulsing red */}
+      {/* CRITICAL toggle — independent */}
       {criticalCount > 0 && (
         <button
-          onClick={() => onUrgencyFilter(urgencyFilter === 'CRITICAL' ? 'none' : 'CRITICAL')}
+          onClick={onToggleCritical}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
-            urgencyFilter === 'CRITICAL'
+            showCritical
               ? 'bg-red-500 text-white shadow-sm'
               : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-300/60 dark:border-red-500/30 hover:bg-red-500/20',
           )}
         >
-          <AlertTriangle className={cn('w-3 h-3', urgencyFilter !== 'CRITICAL' && 'animate-pulse')} />
+          <AlertTriangle className={cn('w-3 h-3', !showCritical && 'animate-pulse')} />
           Kritik ({criticalCount})
         </button>
       )}
 
-      {/* HIGH filter — solid orange */}
+      {/* HIGH toggle — independent */}
       {highCount > 0 && (
         <button
-          onClick={() => onUrgencyFilter(urgencyFilter === 'HIGH' ? 'none' : 'HIGH')}
+          onClick={onToggleHigh}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
-            urgencyFilter === 'HIGH'
+            showHigh
               ? 'bg-amber-500 text-white shadow-sm'
               : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-300/60 dark:border-amber-500/30 hover:bg-amber-500/20',
           )}
@@ -420,11 +427,12 @@ export function AppointmentTable({
   filterTabs, activeFilter, onFilterChange,
   onToggleSelect, onToggleSelectAll, onAction, onDrawer, onResetView,
 }: AppointmentTableProps) {
-  const [search, setSearch]               = useState('');
-  const [dateFilter, setDateFilter]       = useState<DateFilter>('all');
-  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('none');
+  const [search, setSearch]             = useState('');
+  const [dateFilter, setDateFilter]     = useState<DateFilter>('all');
+  const [showCritical, setShowCritical] = useState(false);
+  const [showHigh, setShowHigh]         = useState(false);
 
-  const displayed     = applyLocalFilters(appointments, search, dateFilter, urgencyFilter);
+  const displayed     = applyLocalFilters(appointments, search, dateFilter, showCritical, showHigh);
   const criticalCount = appointments.filter((a) => a.triage?.urgency === 'CRITICAL').length;
   const highCount     = appointments.filter((a) => a.triage?.urgency === 'HIGH').length;
   const isBusy        = actingIds.size > 0 || bulkLoading;
@@ -434,7 +442,8 @@ export function AppointmentTable({
   function clearLocalFilters() {
     setSearch('');
     setDateFilter('all');
-    setUrgencyFilter('none');
+    setShowCritical(false);
+    setShowHigh(false);
     onFilterChange('all');
   }
 
@@ -470,12 +479,14 @@ export function AppointmentTable({
       <FilterToolbar
         search={search}
         dateFilter={dateFilter}
-        urgencyFilter={urgencyFilter}
+        showCritical={showCritical}
+        showHigh={showHigh}
         criticalCount={criticalCount}
         highCount={highCount}
         onSearchChange={setSearch}
         onDateFilter={setDateFilter}
-        onUrgencyFilter={setUrgencyFilter}
+        onToggleCritical={() => setShowCritical((v) => !v)}
+        onToggleHigh={() => setShowHigh((v) => !v)}
         onClearAll={clearLocalFilters}
         onResetView={onResetView}
       />

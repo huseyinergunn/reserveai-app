@@ -313,6 +313,7 @@ export function Step3() {
         Verileriniz{' '}
         <a
           href="/gizlilik"
+          onClick={() => sessionStorage.setItem('reserveai_from_privacy', 'true')}
           className="underline underline-offset-2 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
         >
           Gizlilik Politikası
