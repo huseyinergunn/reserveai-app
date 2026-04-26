@@ -135,10 +135,9 @@
   * { @apply box-border; }
 
   html {
-    font-size: 15px;
+    font-size: 16px;
     scroll-padding-top: 64px;
   }
-  @media (min-width: 1024px) { html { font-size: 15.5px; } }
 
   body {
     @apply font-sans;
@@ -321,7 +320,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: shimmer 3s linear infinite;
+    animation: shimmer 1.8s ease-out 0.3s both;
   }
 
   /* ── Screen icon backgrounds ───────────────────────────────────────────── */

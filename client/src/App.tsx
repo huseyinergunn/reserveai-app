@@ -25,12 +25,12 @@ const FEATURES = [
 
 function HeroSection() {
   return (
-    <section className="relative z-10 text-center px-4 pt-10 sm:pt-14 pb-8 sm:pb-10">
+    <section className="relative z-10 text-center px-4 pt-12 sm:pt-16 pb-10 sm:pb-12">
       {/* Badge */}
       <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-5 sm:mb-6 select-none
-                      border border-brand-500/30 bg-brand-500/10
-                      text-brand-700 dark:text-white text-xs font-semibold">
-        <Sparkles className="w-3.5 h-3.5" />
+                      border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5
+                      text-slate-600 dark:text-slate-300 text-xs font-medium">
+        <Sparkles className="w-3.5 h-3.5 text-brand-500" />
         Yapay Zeka Destekli · Ücretsiz Deneyin
       </div>
 

@@ -40,9 +40,9 @@ export function PortalPage() {
       {/* Welcome */}
       <div className="text-center mb-10 animate-fade-in space-y-3 max-w-md">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full
-                        border border-brand-500/30 bg-brand-500/10
-                        text-brand-700 dark:text-white text-xs font-semibold select-none">
-          <Sparkles className="w-3.5 h-3.5" />
+                        border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5
+                        text-slate-600 dark:text-slate-300 text-xs font-medium select-none">
+          <Sparkles className="w-3.5 h-3.5 text-brand-500" />
           Hoş Geldiniz
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-snug pt-1">

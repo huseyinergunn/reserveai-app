@@ -390,17 +390,17 @@ export function LandingPage() {
       {/* ── Hero + Form — Two Column ────────────────────────────────────── */}
       <section
         id="action-area"
-        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-5 pb-3"
+        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-3"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-10 items-start">
 
           {/* ── LEFT: Text content ── */}
-          <div className="flex flex-col gap-2 lg:gap-3 items-center lg:items-start text-center lg:text-left">
+          <div className="flex flex-col gap-4 lg:gap-6 items-center lg:items-start text-center lg:text-left">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full self-center lg:self-start
-                            border border-brand-500/30 bg-brand-500/10
-                            text-brand-700 dark:text-white text-xs font-semibold select-none">
-              <Sparkles className="w-3 h-3" />
+                            border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5
+                            text-slate-600 dark:text-slate-300 text-xs font-medium select-none">
+              <Sparkles className="w-3 h-3 text-brand-500" />
               Yapay Zeka Destekli · Ücretsiz Deneyin
             </div>
 
@@ -464,11 +464,13 @@ export function LandingPage() {
             <div className="absolute -inset-6 bg-brand-500/8 blur-3xl rounded-full pointer-events-none" />
 
             {/* Card */}
-            <div className="relative rounded-3xl overflow-hidden
-                            bg-white/80 dark:bg-slate-900/80
-                            backdrop-blur-2xl
-                            border border-white/60 dark:border-white/10
-                            shadow-[0_8px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.35)]">
+            <div
+              className="relative rounded-3xl overflow-hidden
+                          bg-white/80 dark:bg-slate-900/80
+                          backdrop-blur-2xl
+                          border border-white/60 dark:border-white/10"
+              style={{ boxShadow: 'var(--card-shadow)' }}
+            >
 
               {/* Inline tab header */}
               <div className="flex border-b border-slate-200/80 dark:border-white/10">

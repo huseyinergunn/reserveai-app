@@ -35,7 +35,7 @@ export default {
         'fade-in':      'fadeIn .3s ease-in-out',
         'shimmer':      'shimmer 2.5s linear infinite',
         'dot-bounce':   'dotBounce 1.4s ease-in-out infinite',
-        'sparkle-spin': 'sparkleSpin 4s linear infinite',
+        'sparkle-spin': 'sparkleSpin 4s ease-in-out infinite',
         'confetti-fall':'confettiFall 3s ease-in forwards',
         'slide-up':     'slideUp 0.45s ease-out both',
         'success-pop':  'successPop 0.5s cubic-bezier(.34,1.56,.64,1) both',
@@ -87,7 +87,7 @@ export default {
         },
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
-          '50%':      { transform: 'translateY(-7px)' },
+          '50%':      { transform: 'translateY(-3px)' },
         },
       },
     },
