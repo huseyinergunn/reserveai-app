@@ -460,17 +460,17 @@ export function LandingPage() {
 
           {/* ── RIGHT: Glassmorphism form card ── */}
           <div className="relative">
-            {/* Ambient light leak — arka plandan sızan ışık */}
-            <div className="absolute -inset-10 bg-brand-500/10 blur-[80px] rounded-full pointer-events-none" />
-            <div className="absolute -bottom-8 -left-8 w-64 h-64 bg-violet-500/6 blur-[60px] rounded-full pointer-events-none" />
+            {/* Ambient light leak — focus durumunda nefes alır */}
+            <div className={`absolute -inset-10 bg-brand-500/10 blur-[80px] rounded-full pointer-events-none transition-all duration-1000 ${formFocused ? 'glow-breathe' : ''}`} />
+            <div className={`absolute -bottom-8 -left-8 w-64 h-64 bg-violet-500/6 blur-[60px] rounded-full pointer-events-none transition-all duration-1000 ${formFocused ? 'glow-breathe' : ''}`} style={{ animationDelay: '1.5s' }} />
 
-            {/* Card */}
+            {/* Card — ağır cam blok, jelly değil */}
             <div
               className="relative rounded-[2rem] overflow-hidden
                           bg-white/80 dark:bg-slate-900/80
                           backdrop-blur-2xl
                           border border-white/60 dark:border-white/10
-                          jelly-hover"
+                          form-card-premium form-grain"
               style={{ boxShadow: 'var(--card-shadow)' }}
             >
 
