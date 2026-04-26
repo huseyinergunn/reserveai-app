@@ -141,11 +141,13 @@
   html {
     font-size: 16px;
     scroll-padding-top: 64px;
+    overflow-x: hidden;
   }
 
   body {
     @apply font-sans;
     overflow-x: hidden;
+    position: relative;
   }
 
   #root {
@@ -447,6 +449,25 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    Jelly keyframe — yay fiziği etkisi
 ───────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mobile — overflow containment (≤ 1023px)
+   Reduce oversized glow orbs so they stay inside the clipping container.
+───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .page-bg::before {
+    width:  min(480px, 100vw);
+    height: min(480px, 100vw);
+    top: -160px;
+    right: -120px;
+  }
+  .page-bg::after {
+    width:  min(380px, 100vw);
+    height: min(380px, 100vw);
+    bottom: -100px;
+    left: -100px;
+  }
+}
+
 @keyframes jelly {
   0%   { transform: scale(1, 1);       }
   28%  { transform: scale(1.06, 0.94); }

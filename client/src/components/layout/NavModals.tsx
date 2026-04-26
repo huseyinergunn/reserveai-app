@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   X,
+  ArrowLeft,
   MessageSquare,
   Brain,
   CalendarCheck,
@@ -128,10 +129,11 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 ml-4 p-1.5 rounded-lg
+            className="flex-shrink-0 ml-4 flex items-center justify-center rounded-xl lg:rounded-lg
+                       p-2.5 lg:p-1.5 min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0
                        text-slate-400 hover:text-slate-700 dark:hover:text-slate-200
                        hover:bg-slate-100 dark:hover:bg-slate-700/60
-                       transition-colors"
+                       active:scale-95 transition-all"
             aria-label="Kapat"
           >
             <X className="w-5 h-5" />
@@ -141,6 +143,21 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
         {/* Scrollable body */}
         <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 sm:py-6">
           {children}
+        </div>
+
+        {/* Mobile-only sticky footer close button */}
+        <div className="flex-shrink-0 lg:hidden px-4 py-3 border-t border-slate-100 dark:border-slate-700/40 modal-header">
+          <button
+            onClick={onClose}
+            className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-xl
+                       text-sm font-semibold text-slate-700 dark:text-slate-200
+                       bg-slate-100/80 dark:bg-slate-700/60
+                       border border-slate-200 dark:border-slate-600/50
+                       active:scale-[0.98] transition-transform"
+          >
+            <X className="w-4 h-4" />
+            Kapat
+          </button>
         </div>
       </div>
     </div>
@@ -324,7 +341,224 @@ const PLANS: Plan[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Plan detail sub-layer — shown when a pricing CTA is clicked
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PlanDetailMeta {
+  tagline:    string;
+  proofLine:  string;
+  formType:   'free' | 'pro' | 'enterprise';
+  ctaLabel:   string;
+  highlights: string[];
+}
+
+const PLAN_DETAIL: Record<string, PlanDetailMeta> = {
+  'Başlangıç': {
+    tagline:    'Dakikalar içinde başlayın',
+    proofLine:  'Kredi kartı gerekmez · Sözleşme yok · İstediğinizde iptal',
+    formType:   'free',
+    ctaLabel:   'Ücretsiz Hesap Oluştur',
+    highlights: [
+      'Aylık 10 randevu kapasitesi',
+      'Temel AI sınıflandırma aktif',
+      'Otomatik e-posta onayları',
+    ],
+  },
+  'Pro': {
+    tagline:    '30 gün ücretsiz deneyin',
+    proofLine:  'Deneme bitmeden ücret alınmaz · İstediğinizde iptal',
+    formType:   'pro',
+    ctaLabel:   '30 Gün Ücretsiz Başla',
+    highlights: [
+      'Sınırsız randevu kapasitesi',
+      'n8n + Google Takvim entegrasyonu',
+      'Öncelikli destek hattı',
+    ],
+  },
+  'Kurumsal': {
+    tagline:    'Ekibinize özel çözüm',
+    proofLine:  'Bir uzmanımız 24 saat içinde sizi arar',
+    formType:   'enterprise',
+    ctaLabel:   'Demo Talep Et',
+    highlights: [
+      'White-label kurulum & özel API',
+      'Özel SLA güvencesi',
+      '7/24 öncelikli destek hattı',
+    ],
+  },
+};
+
+function PlanDetailSheet({ plan, onBack }: { plan: Plan; onBack: () => void }) {
+  const [done, setDone] = useState(false);
+  const cfg = PLAN_DETAIL[plan.name];
+  if (!cfg) return null;
+
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setDone(true); };
+
+  if (done) {
+    return (
+      <div className="py-10 text-center space-y-4 animate-fade-in">
+        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto animate-success-pop
+                        bg-emerald-100 dark:bg-emerald-500/15">
+          <Check className="w-7 h-7 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">İstek Alındı!</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">{cfg.proofLine}</p>
+        </div>
+        <button onClick={onBack} className="text-sm text-brand-600 dark:text-brand-400 hover:underline font-medium">
+          ← Planlara Dön
+        </button>
+      </div>
+    );
+  }
+
+  const isPro = plan.highlight;
+
+  return (
+    <div className="space-y-5 animate-slide-up">
+      {/* Back navigation */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-xs font-semibold group
+                   text-slate-500 dark:text-slate-400
+                   hover:text-brand-600 dark:hover:text-brand-400 transition-colors -ml-0.5"
+      >
+        <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+        Planlara Dön
+      </button>
+
+      {/* Hero card — Tactile Kinetic */}
+      <div className={`relative rounded-2xl p-5 border overflow-hidden ${
+        isPro
+          ? 'bg-gradient-to-br from-brand-600 to-indigo-700 border-brand-500/80'
+          : plan.name === 'Kurumsal'
+            ? 'bg-gradient-to-br from-violet-50 to-slate-50 border-violet-100 dark:from-violet-950/40 dark:to-slate-800/60 dark:border-violet-500/20'
+            : 'bg-gradient-to-br from-blue-50 to-indigo-50/60 border-blue-100 dark:from-blue-950/40 dark:to-indigo-950/20 dark:border-blue-500/20'
+      }`}>
+        {/* Grain texture overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.035]"
+          style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E\")" }}
+        />
+
+        <div className="relative z-10">
+          <div className="flex items-start gap-3.5 mb-4">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              isPro
+                ? 'bg-white/20 text-white'
+                : plan.name === 'Kurumsal'
+                  ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400'
+                  : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+            }`}>
+              <plan.icon className="w-5 h-5" strokeWidth={1.8} />
+            </div>
+            <div>
+              <p className={`text-[11px] font-semibold uppercase tracking-wider mb-0.5 ${
+                isPro ? 'text-blue-200' : 'text-slate-500 dark:text-slate-400'
+              }`}>
+                {plan.name} Planı · {plan.price}
+                {plan.period !== 'sonsuza dek' && plan.period !== 'teklif alın' ? ` / ${plan.period}` : ''}
+              </p>
+              <p className={`text-lg font-bold leading-snug ${
+                isPro ? 'text-white' : 'text-slate-900 dark:text-white'
+              }`}>
+                {cfg.tagline}
+              </p>
+            </div>
+          </div>
+
+          <ul className="space-y-2">
+            {cfg.highlights.map((h) => (
+              <li key={h} className="flex items-center gap-2.5">
+                <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${
+                  isPro
+                    ? 'bg-white/20 text-white'
+                    : 'bg-brand-100 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400'
+                }`}>
+                  <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                </span>
+                <span className={`text-xs font-medium ${
+                  isPro ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                }`}>
+                  {h}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Proof line */}
+      <p className="text-[11px] text-center text-slate-400 dark:text-slate-500 tracking-wide">
+        {cfg.proofLine}
+      </p>
+
+      {/* Action form */}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {cfg.formType === 'free' && (
+          <div className="space-y-1.5">
+            <label className="form-label">E-posta adresiniz</label>
+            <input type="email" required placeholder="siz@ornek.com" className="form-input" />
+          </div>
+        )}
+
+        {cfg.formType === 'pro' && (
+          <>
+            <div className="space-y-1.5">
+              <label className="form-label">E-posta adresiniz</label>
+              <input type="email" required placeholder="siz@ornek.com" className="form-input" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="form-label">Ödeme Yöntemi</label>
+              <select className="form-input appearance-none">
+                <option>Kredi / Banka Kartı</option>
+                <option>EFT / IBAN Transferi</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {cfg.formType === 'enterprise' && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="form-label">Ad Soyad</label>
+                <input type="text" required placeholder="Ayşe Yılmaz" className="form-input" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="form-label">Şirket</label>
+                <input type="text" required placeholder="Şirket Adı" className="form-input" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="form-label">
+                Mesajınız{' '}
+                <span className="font-normal text-slate-400 dark:text-slate-500">(isteğe bağlı)</span>
+              </label>
+              <textarea rows={3} placeholder="Ekibinizin ihtiyaçlarını kısaca açıklayın…"
+                className="form-input resize-none" />
+            </div>
+          </>
+        )}
+
+        <Button type="submit" className="w-full mt-1">
+          {cfg.ctaLabel}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </form>
+    </div>
+  );
+}
+
 function PricingContent() {
+  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+
+  if (activePlan) {
+    return <PlanDetailSheet plan={activePlan} onBack={() => setActivePlan(null)} />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -410,6 +644,7 @@ function PricingContent() {
 
             {/* CTA */}
             <button
+              onClick={() => setActivePlan(plan)}
               className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
                 ${plan.highlight
                   ? 'bg-white text-brand-600 hover:bg-blue-50 hover:shadow-md'
