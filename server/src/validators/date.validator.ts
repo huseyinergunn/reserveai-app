@@ -2,6 +2,7 @@ import {
   getAvailableDateOptions,
   parseDateTimeFromForm,
   isWeekend,
+  isHoliday,
 } from '../../../shared/dateUtils';
 import { TIME_SLOTS, TIMEZONE } from '../../../shared/constants';
 import type { TimeSlot } from '../../../shared/constants';
@@ -89,6 +90,10 @@ export class DateValidator {
 
     if (isWeekend(dt)) {
       return { valid: false, error: 'Appointments cannot be scheduled on weekends.' };
+    }
+
+    if (isHoliday(dt)) {
+      return { valid: false, error: 'Appointments cannot be scheduled on public holidays.' };
     }
 
     if (dt <= DateTime.now().setZone(this.timezone)) {

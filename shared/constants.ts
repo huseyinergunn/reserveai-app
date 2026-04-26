@@ -22,3 +22,18 @@ export const DEFAULT_APPOINTMENT_DURATION_MINUTES = 30;
 /** Enquiry character limits (match Zod schemas) */
 export const ENQUIRY_MIN_LENGTH = 10;
 export const ENQUIRY_MAX_LENGTH = 2000;
+
+/**
+ * Turkish public holidays — fixed-date only (MM-DD format).
+ * Variable religious holidays (Ramazan/Kurban Bayramı) shift each year
+ * and must be managed via environment config or a separate calendar.
+ */
+export const TURKISH_HOLIDAYS: ReadonlyArray<string> = [
+  '01-01', // Yılbaşı
+  '04-23', // Ulusal Egemenlik ve Çocuk Bayramı
+  '05-01', // Emek ve Dayanışma Bayramı
+  '05-19', // Atatürk'ü Anma, Gençlik ve Spor Bayramı
+  '07-15', // Demokrasi ve Millî Birlik Günü
+  '08-30', // Zafer Bayramı
+  '10-29', // Cumhuriyet Bayramı
+];

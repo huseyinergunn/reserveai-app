@@ -3,7 +3,7 @@ import { Loader2, Trash2, Award, XCircle } from 'lucide-react';
 interface BulkActionBarProps {
   count:        number;
   loading:      boolean;
-  archiveMode:  'active' | 'archive';
+  archiveMode:  'active' | 'archive' | 'all';
   onCancel:     () => void;
   onComplete:   () => void;
   onDelete:     () => void;
@@ -22,7 +22,7 @@ export function BulkActionBar({ count, loading, archiveMode, onCancel, onComplet
         </span>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
 
-        {archiveMode === 'active' ? (
+        {archiveMode !== 'archive' && (
           <>
             <button
               onClick={onCancel}
@@ -45,7 +45,8 @@ export function BulkActionBar({ count, loading, archiveMode, onCancel, onComplet
               Tamamlandı
             </button>
           </>
-        ) : (
+        )}
+        {archiveMode !== 'active' && (
           <button
             onClick={onDelete}
             disabled={loading}

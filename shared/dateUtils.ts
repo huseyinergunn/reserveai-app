@@ -7,7 +7,7 @@
  */
 
 import { DateTime } from 'luxon';
-import { TIME_SLOTS, DEFAULT_BOOKING_WINDOW_DAYS } from './constants';
+import { TIME_SLOTS, DEFAULT_BOOKING_WINDOW_DAYS, TURKISH_HOLIDAYS } from './constants';
 
 // ---------------------------------------------------------------------------
 // Core helpers
@@ -18,9 +18,15 @@ export function isWeekend(dt: DateTime): boolean {
   return dt.weekday === 6 || dt.weekday === 7; // Luxon: Mon=1 … Sun=7
 }
 
+/** Returns true when the given DateTime falls on a Turkish public holiday (fixed-date). */
+export function isHoliday(dt: DateTime): boolean {
+  const mmdd = dt.toFormat('MM-dd');
+  return (TURKISH_HOLIDAYS as ReadonlyArray<string>).includes(mmdd);
+}
+
 /**
- * Returns the next `count` weekdays starting from tomorrow, in the given zone.
- * Matches the n8n 5-day window expression exactly.
+ * Returns the next `count` bookable days (non-weekend, non-holiday) starting
+ * from tomorrow, in the given zone.
  */
 export function getAvailableWeekdays(
   count: number = DEFAULT_BOOKING_WINDOW_DAYS,
@@ -32,7 +38,7 @@ export function getAvailableWeekdays(
 
   while (results.length < count) {
     const candidate = from.startOf('day').plus({ days: offset });
-    if (!isWeekend(candidate)) results.push(candidate);
+    if (!isWeekend(candidate) && !isHoliday(candidate)) results.push(candidate);
     offset++;
   }
 

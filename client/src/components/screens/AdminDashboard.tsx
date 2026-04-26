@@ -351,11 +351,12 @@ export function AdminDashboard() {
 
         {/* View mode toggles */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Active / Archive */}
+          {/* Active / Archive / All */}
           <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50">
             {([
               { key: 'active',  label: 'Aktif', icon: List    },
               { key: 'archive', label: 'Arşiv', icon: Archive },
+              { key: 'all',     label: 'Tümü',  icon: CalendarCheck },
             ] as const).map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
