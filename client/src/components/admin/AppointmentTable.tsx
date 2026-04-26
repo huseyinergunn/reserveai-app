@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   CheckCircle2, XCircle, Ban, Award, Eye,
   CheckSquare, Square, Loader2, CalendarDays, CalendarCheck,
-  Search, X, AlertTriangle,
+  Search, X, AlertTriangle, RotateCcw,
 } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { cva } from 'class-variance-authority';
@@ -288,11 +288,12 @@ interface FilterToolbarProps {
   onDateFilter:    (v: DateFilter) => void;
   onUrgencyFilter: (v: UrgencyFilter) => void;
   onClearAll:      () => void;
+  onResetView?:    () => void;
 }
 
 function FilterToolbar({
   search, dateFilter, urgencyFilter, criticalCount, highCount,
-  onSearchChange, onDateFilter, onUrgencyFilter, onClearAll,
+  onSearchChange, onDateFilter, onUrgencyFilter, onClearAll, onResetView,
 }: FilterToolbarProps) {
   const hasFilters = !!search || dateFilter !== 'all' || urgencyFilter !== 'none';
 
@@ -369,16 +370,27 @@ function FilterToolbar({
         </button>
       )}
 
-      {/* Clear all active filters */}
-      {hasFilters && (
-        <button
-          onClick={onClearAll}
-          className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <X className="w-3 h-3" />
-          Temizle
-        </button>
-      )}
+      {/* Tümü — clear all filters + reset to default active view */}
+      <button
+        onClick={() => { onClearAll(); onResetView?.(); }}
+        disabled={!hasFilters}
+        title={hasFilters ? 'Tüm filtreleri temizle ve varsayılan görünüme dön' : 'Aktif filtre yok'}
+        className={cn(
+          'ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-300',
+          hasFilters
+            ? [
+                'text-brand-600 dark:text-brand-400',
+                'bg-brand-500/10 border border-brand-300/60 dark:border-brand-500/30',
+                'hover:bg-brand-500/20',
+                'shadow-[0_0_10px_rgba(99,102,241,0.20)]',
+                'ring-1 ring-brand-400/30 dark:ring-brand-500/20',
+              ].join(' ')
+            : 'text-slate-400 dark:text-slate-600 border border-transparent opacity-40 cursor-not-allowed',
+        )}
+      >
+        <RotateCcw className={cn('w-3 h-3', hasFilters && 'animate-[spin_0.4s_ease-out_1]')} />
+        Tümü
+      </button>
     </div>
   );
 }
@@ -400,12 +412,13 @@ interface AppointmentTableProps {
   onToggleSelectAll: (ids: string[]) => void;
   onAction:          (id: string, action: 'approve' | 'reject' | 'cancel' | 'complete') => void;
   onDrawer:          (apt: AdminAppointment) => void;
+  onResetView?:      () => void;
 }
 
 export function AppointmentTable({
   appointments, selected, actingIds, actingAction, bulkLoading,
   filterTabs, activeFilter, onFilterChange,
-  onToggleSelect, onToggleSelectAll, onAction, onDrawer,
+  onToggleSelect, onToggleSelectAll, onAction, onDrawer, onResetView,
 }: AppointmentTableProps) {
   const [search, setSearch]               = useState('');
   const [dateFilter, setDateFilter]       = useState<DateFilter>('all');
@@ -422,6 +435,7 @@ export function AppointmentTable({
     setSearch('');
     setDateFilter('all');
     setUrgencyFilter('none');
+    onFilterChange('all');
   }
 
   // ── Empty state (no appointments for this status filter) ─────────────────
@@ -463,6 +477,7 @@ export function AppointmentTable({
         onDateFilter={setDateFilter}
         onUrgencyFilter={setUrgencyFilter}
         onClearAll={clearLocalFilters}
+        onResetView={onResetView}
       />
 
       {/* ── Mobile card list (< sm) ────────────────────────────────────── */}

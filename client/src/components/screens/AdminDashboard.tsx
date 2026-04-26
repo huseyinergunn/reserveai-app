@@ -351,12 +351,11 @@ export function AdminDashboard() {
 
         {/* View mode toggles */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Active / Archive / All */}
+          {/* Active / Archive */}
           <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50">
             {([
               { key: 'active',  label: 'Aktif', icon: List    },
               { key: 'archive', label: 'Arşiv', icon: Archive },
-              { key: 'all',     label: 'Tümü',  icon: CalendarCheck },
             ] as const).map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -418,6 +417,10 @@ export function AdminDashboard() {
             onToggleSelectAll={toggleSelectAll}
             onAction={handleAction}
             onDrawer={setDrawerApt}
+            onResetView={() => {
+              setArchiveMode('active');
+              setFilter('all');
+            }}
           />
         )}
       </main>

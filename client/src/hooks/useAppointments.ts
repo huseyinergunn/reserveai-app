@@ -14,41 +14,27 @@ const ACTIVE_STATUSES  = new Set(['pending', 'approved']);
 const ARCHIVE_STATUSES = new Set(['rejected', 'cancelled', 'completed']);
 
 function deriveFiltered(state: AdminState) {
-  const modeFiltered =
-    state.archiveMode === 'all'
-      ? state.appointments
-      : state.appointments.filter((a) =>
-          state.archiveMode === 'active'
-            ? ACTIVE_STATUSES.has(a.status)
-            : ARCHIVE_STATUSES.has(a.status),
-        );
-
+  const modeFiltered = state.appointments.filter((a) =>
+    state.archiveMode === 'active'
+      ? ACTIVE_STATUSES.has(a.status)
+      : ARCHIVE_STATUSES.has(a.status),
+  );
   const filtered = state.filter === 'all'
     ? modeFiltered
     : modeFiltered.filter((a) => a.status === state.filter);
 
-  const filterTabs =
-    state.archiveMode === 'active'
-      ? [
-          { key: 'all' as FilterStatus,      label: 'Tümü',     count: modeFiltered.length },
-          { key: 'pending' as FilterStatus,  label: 'Bekleyen', count: modeFiltered.filter((a) => a.status === 'pending').length },
-          { key: 'approved' as FilterStatus, label: 'Onaylı',   count: modeFiltered.filter((a) => a.status === 'approved').length },
-        ]
-      : state.archiveMode === 'archive'
-        ? [
-            { key: 'all' as FilterStatus,       label: 'Tümü',       count: modeFiltered.length },
-            { key: 'rejected' as FilterStatus,  label: 'Reddedildi', count: modeFiltered.filter((a) => a.status === 'rejected').length },
-            { key: 'cancelled' as FilterStatus, label: 'İptal',      count: modeFiltered.filter((a) => a.status === 'cancelled').length },
-            { key: 'completed' as FilterStatus, label: 'Tamamlandı', count: modeFiltered.filter((a) => a.status === 'completed').length },
-          ]
-        : [
-            { key: 'all' as FilterStatus,       label: 'Tümü',       count: modeFiltered.length },
-            { key: 'pending' as FilterStatus,   label: 'Bekleyen',   count: modeFiltered.filter((a) => a.status === 'pending').length },
-            { key: 'approved' as FilterStatus,  label: 'Onaylı',     count: modeFiltered.filter((a) => a.status === 'approved').length },
-            { key: 'rejected' as FilterStatus,  label: 'Reddedildi', count: modeFiltered.filter((a) => a.status === 'rejected').length },
-            { key: 'cancelled' as FilterStatus, label: 'İptal',      count: modeFiltered.filter((a) => a.status === 'cancelled').length },
-            { key: 'completed' as FilterStatus, label: 'Tamamlandı', count: modeFiltered.filter((a) => a.status === 'completed').length },
-          ];
+  const filterTabs = state.archiveMode === 'active'
+    ? [
+        { key: 'all' as FilterStatus,      label: 'Tümü',     count: modeFiltered.length },
+        { key: 'pending' as FilterStatus,  label: 'Bekleyen', count: modeFiltered.filter((a) => a.status === 'pending').length },
+        { key: 'approved' as FilterStatus, label: 'Onaylı',   count: modeFiltered.filter((a) => a.status === 'approved').length },
+      ]
+    : [
+        { key: 'all' as FilterStatus,       label: 'Tümü',       count: modeFiltered.length },
+        { key: 'rejected' as FilterStatus,  label: 'Reddedildi', count: modeFiltered.filter((a) => a.status === 'rejected').length },
+        { key: 'cancelled' as FilterStatus, label: 'İptal',      count: modeFiltered.filter((a) => a.status === 'cancelled').length },
+        { key: 'completed' as FilterStatus, label: 'Tamamlandı', count: modeFiltered.filter((a) => a.status === 'completed').length },
+      ];
 
   return { modeFiltered, filtered, filterTabs };
 }

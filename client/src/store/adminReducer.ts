@@ -5,7 +5,7 @@ import type { AdminAppointment, AdminStats } from '../services/api';
 // ---------------------------------------------------------------------------
 
 export type ViewMode    = 'list' | 'calendar';
-export type ArchiveMode = 'active' | 'archive' | 'all';
+export type ArchiveMode = 'active' | 'archive';
 export type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 
 export interface AdminState {
