@@ -246,27 +246,35 @@ function applyLocalFilters(
   const tomorrowStr = now.plus({ days: 1 }).toFormat('yyyy-MM-dd');
   const weekEndStr  = now.endOf('week').toFormat('yyyy-MM-dd');
 
-  const urgencyActive = showCritical || showHigh;
-
   let result = appointments.filter((apt) => {
+    // Text search — independent of all other filters
     if (search) {
       const q = search.toLowerCase();
       if (!apt.name.toLowerCase().includes(q) && !apt.email.toLowerCase().includes(q)) return false;
     }
+
+    // Date filter — independent of urgency
     if (dateFilter !== 'all') {
       const dayStr = DateTime.fromISO(apt.dateTime, { zone: TIMEZONE }).toFormat('yyyy-MM-dd');
       if (dateFilter === 'today'    && dayStr !== todayStr)                        return false;
       if (dateFilter === 'tomorrow' && dayStr !== tomorrowStr)                     return false;
       if (dateFilter === 'week'     && (dayStr < todayStr || dayStr > weekEndStr)) return false;
     }
-    if (urgencyActive) {
+
+    // Urgency filter — only active when at least one urgency button is toggled on.
+    // When neither button is active, ALL urgency levels pass through.
+    if (showCritical || showHigh) {
       const u = apt.triage?.urgency;
-      if (!(showCritical && u === 'CRITICAL') && !(showHigh && u === 'HIGH')) return false;
+      const passesCritical = showCritical && u === 'CRITICAL';
+      const passesHigh     = showHigh     && u === 'HIGH';
+      if (!passesCritical && !passesHigh) return false;
     }
+
     return true;
   });
 
-  if (urgencyActive) {
+  // Sort by AI clarity score only when urgency filter is active
+  if (showCritical || showHigh) {
     result = [...result].sort((a, b) => (b.triage?.clarity ?? 0) - (a.triage?.clarity ?? 0));
   }
 
@@ -356,7 +364,7 @@ function FilterToolbar({
               : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-300/60 dark:border-red-500/30 hover:bg-red-500/20',
           )}
         >
-          <AlertTriangle className={cn('w-3 h-3', !showCritical && 'animate-pulse')} />
+          <AlertTriangle className="w-3 h-3" />
           Kritik ({criticalCount})
         </button>
       )}

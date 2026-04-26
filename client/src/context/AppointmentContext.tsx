@@ -173,8 +173,9 @@ function reducer(state: AppState, action: AppAction): AppState {
 // sessionStorage draft persistence
 // ---------------------------------------------------------------------------
 
-const DRAFT_KEY         = 'reserveai_form_draft';
-const PRIVACY_EXIT_KEY  = 'reserveai_from_privacy';
+const DRAFT_KEY        = 'reserveai_form_draft';
+const PRIVACY_EXIT_KEY = 'reserveai_from_privacy';
+const CLEAR_ON_LOAD_KEY = 'reserveai_clear_on_load';
 
 type DraftState = Pick<AppState, 'screenState' | 'step1Data' | 'extractedData'>;
 
@@ -208,31 +209,43 @@ function saveDraft(state: AppState): void {
 }
 
 /**
- * Decides whether to restore the draft on mount.
+ * Draft restore decision — runs once on AppointmentProvider mount.
  *
- * Draft is kept only when:
- *   1. The page was refreshed (navType === 'reload')
- *   2. The user pressed browser Back (navType === 'back_forward')
- *   3. The user navigated to /gizlilik and is returning (privacy exit flag)
+ * Restore when:
+ *   • Browser reload (F5)          — navType === 'reload'
+ *   • Browser back/forward button  — navType === 'back_forward'
+ *   • Returning from /gizlilik     — PRIVACY_EXIT_KEY flag set on link click
  *
- * In all other cases (fresh navigation from home, direct URL entry) the draft
- * is discarded so the form always starts blank.
+ * Clear when:
+ *   • User navigated away from /randevu normally (home, portal, etc.)
+ *     → pagehide listener set CLEAR_ON_LOAD_KEY, and navType !== 'reload'
+ *   • Any other fresh navigate with no prior pagehide signal
  */
 function getInitialState(): AppState {
-  const navEntry  = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-  const navType   = navEntry?.type ?? 'navigate';
+  const navType     = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? 'navigate';
+  const shouldClear = sessionStorage.getItem(CLEAR_ON_LOAD_KEY) === 'true';
+  const fromPrivacy = sessionStorage.getItem(PRIVACY_EXIT_KEY) === 'true';
 
-  const isReload      = navType === 'reload';
-  const isBackForward = navType === 'back_forward';
-  const fromPrivacy   = sessionStorage.getItem(PRIVACY_EXIT_KEY) === 'true';
-
+  // Consume one-shot flags immediately
+  sessionStorage.removeItem(CLEAR_ON_LOAD_KEY);
   if (fromPrivacy) sessionStorage.removeItem(PRIVACY_EXIT_KEY);
 
-  if (isReload || isBackForward || fromPrivacy) {
+  // Privacy policy return — always restore
+  if (fromPrivacy) return loadDraft() ?? INITIAL_STATE;
+
+  // pagehide fired (user left /randevu) and this is NOT a reload
+  // → user navigated to a different page (home, admin, etc.) and came back
+  if (shouldClear && navType !== 'reload') {
+    sessionStorage.removeItem(DRAFT_KEY);
+    return INITIAL_STATE;
+  }
+
+  // Browser reload (F5) or back/forward → restore progress
+  if (navType === 'reload' || navType === 'back_forward') {
     return loadDraft() ?? INITIAL_STATE;
   }
 
-  // Fresh navigation → clear any stale draft and start clean
+  // Fresh navigate with no prior pagehide (first-ever visit or direct URL)
   sessionStorage.removeItem(DRAFT_KEY);
   return INITIAL_STATE;
 }
@@ -248,6 +261,18 @@ const AppointmentCtx = createContext<{
 
 export function AppointmentProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, getInitialState);
+
+  // Set a flag on page hide so the next mount knows to clear the draft,
+  // unless the user is navigating to the privacy policy (one-shot flag).
+  useEffect(() => {
+    const onPageHide = () => {
+      if (sessionStorage.getItem(PRIVACY_EXIT_KEY) !== 'true') {
+        sessionStorage.setItem(CLEAR_ON_LOAD_KEY, 'true');
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
 
   useEffect(() => {
     saveDraft(state);
