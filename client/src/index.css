@@ -16,9 +16,9 @@
   /* Form card — saf beyaz, "yüzen kağıt" */
   --card-bg:        #ffffff;
   --card-border:    rgba(203, 213, 225, 0.85);
-  --card-shadow:    0 1px 3px rgba(0, 0, 0, 0.04),
-                    0 4px 12px rgba(148, 163, 184, 0.12),
-                    0 10px 25px -5px rgba(0, 0, 0, 0.06),
+  --card-shadow:    0 1px 2px rgba(0, 0, 0, 0.03),
+                    0 4px 16px rgba(148, 163, 184, 0.14),
+                    0 16px 48px -8px rgba(0, 0, 0, 0.08),
                     inset 0 1px 0 rgba(255, 255, 255, 1);
 
   /* Inputs */
@@ -77,9 +77,9 @@
   /* Form card */
   --card-bg:        rgba(15, 23, 42, 0.72);
   --card-border:    rgba(51, 65, 85, 0.65);
-  --card-shadow:    0 32px 64px rgba(0, 0, 0, 0.55),
-                    0 0 0 1px rgba(255, 255, 255, 0.03),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --card-shadow:    0 40px 80px rgba(0, 0, 0, 0.65),
+                    0 0 0 1px rgba(255, 255, 255, 0.04),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   /* Inputs */
   --input-bg:           rgba(30, 41, 59, 0.80);
@@ -205,24 +205,32 @@
 
   /* ── Page background ───────────────────────────────────────────────────── */
   .page-bg {
-    background: var(--page-gradient);
+    /* Grain texture katmanı: hafif kumlanma, saf dijital pürüzsüzlükten kaçın */
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E") repeat,
+      var(--page-gradient);
     position:   relative;
-    /* overflow: clip — pseudo-elementleri içeride keser, BFC oluşturmaz.
-       BFC oluşturmadığı için position:sticky çalışmaya devam eder.
-       (overflow:hidden sticky'yi kırıyordu, bu kırmaz.) */
     overflow: clip;
   }
   .page-bg::before {
     content: '';
-    position: absolute; width: 700px; height: 700px; border-radius: 50%;
-    background: radial-gradient(circle, var(--page-glow-1) 0%, transparent 65%);
-    top: -250px; right: -200px; pointer-events: none; z-index: 0;
+    position: absolute; width: 900px; height: 900px; border-radius: 50%;
+    background: radial-gradient(circle, var(--page-glow-1) 0%, transparent 60%);
+    top: -320px; right: -240px; pointer-events: none; z-index: 0;
   }
   .page-bg::after {
     content: '';
-    position: absolute; width: 500px; height: 500px; border-radius: 50%;
-    background: radial-gradient(circle, var(--page-glow-2) 0%, transparent 65%);
-    bottom: -150px; left: -150px; pointer-events: none; z-index: 0;
+    position: absolute; width: 700px; height: 700px; border-radius: 50%;
+    background: radial-gradient(circle, var(--page-glow-2) 0%, transparent 60%);
+    bottom: -200px; left: -200px; pointer-events: none; z-index: 0;
+  }
+
+  /* ── Jelly hover — dokunsal geri bildirim ──────────────────────────────── */
+  .jelly-hover {
+    transition: transform 0.18s ease;
+  }
+  .jelly-hover:hover {
+    animation: jelly 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
   /* ── Navbar ────────────────────────────────────────────────────────────── */
@@ -395,4 +403,15 @@
       0 12px 40px rgba(37, 99, 235, 0.45),
       0 0 80px rgba(59, 130, 246, 0.20);
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Jelly keyframe — yay fiziği etkisi
+───────────────────────────────────────────────────────────────────────────── */
+@keyframes jelly {
+  0%   { transform: scale(1, 1);       }
+  28%  { transform: scale(1.06, 0.94); }
+  55%  { transform: scale(0.96, 1.04); }
+  78%  { transform: scale(1.02, 0.99); }
+  100% { transform: scale(1, 1);       }
 }

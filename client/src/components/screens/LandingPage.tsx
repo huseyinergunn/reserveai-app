@@ -287,7 +287,7 @@ function HowItWorksSection() {
         {HOW_IT_WORKS.map(({ step, icon: Icon, color, title, desc }) => (
           <div
             key={step}
-            className="relative rounded-2xl p-6 space-y-4 flex flex-col items-center text-center"
+            className="relative rounded-3xl p-6 space-y-4 flex flex-col items-center text-center jelly-hover"
             style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}
           >
             <div className="flex flex-col items-center gap-2">
@@ -460,15 +460,17 @@ export function LandingPage() {
 
           {/* ── RIGHT: Glassmorphism form card ── */}
           <div className="relative">
-            {/* Ambient glow */}
-            <div className="absolute -inset-6 bg-brand-500/8 blur-3xl rounded-full pointer-events-none" />
+            {/* Ambient light leak — arka plandan sızan ışık */}
+            <div className="absolute -inset-10 bg-brand-500/10 blur-[80px] rounded-full pointer-events-none" />
+            <div className="absolute -bottom-8 -left-8 w-64 h-64 bg-violet-500/6 blur-[60px] rounded-full pointer-events-none" />
 
             {/* Card */}
             <div
-              className="relative rounded-3xl overflow-hidden
+              className="relative rounded-[2rem] overflow-hidden
                           bg-white/80 dark:bg-slate-900/80
                           backdrop-blur-2xl
-                          border border-white/60 dark:border-white/10"
+                          border border-white/60 dark:border-white/10
+                          jelly-hover"
               style={{ boxShadow: 'var(--card-shadow)' }}
             >
 

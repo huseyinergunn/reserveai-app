@@ -60,8 +60,9 @@ export function PortalPage() {
         {/* Customer card */}
         <a
           href="/randevu"
-          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
-                     transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
+          className="group relative rounded-3xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
+                     transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]
+                     hover:-translate-y-2
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
             background:        'var(--card-bg)',
@@ -105,8 +106,9 @@ export function PortalPage() {
         {/* Admin card */}
         <a
           href="/admin/login"
-          className="group relative rounded-2xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
-                     transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl
+          className="group relative rounded-3xl p-6 sm:p-7 flex flex-col items-center text-center gap-5 cursor-pointer
+                     transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]
+                     hover:-translate-y-2
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           style={{
             background:        'var(--card-bg)',
