@@ -394,15 +394,24 @@ export function AppointmentTable({
   const allSelected   = displayed.length > 0 && displayed.every((a) => selected.has(a._id));
   const someSelected  = displayed.some((a) => selected.has(a._id));
 
-  function clearLocalFilters() {
-    onResetView?.();
-  }
+  return (
+    <div className="form-card !max-w-none p-0 overflow-visible">
+      {/* FilterTabs and FilterToolbar are ALWAYS rendered regardless of results.
+          Only the content area below changes when the list is empty. */}
+      <FilterTabs tabs={filterTabs} active={activeFilter} onChange={onFilterChange} />
 
-  // ── Empty state (no appointments for this status filter) ─────────────────
-  if (appointments.length === 0) {
-    return (
-      <div className="form-card !max-w-none">
-        <FilterTabs tabs={filterTabs} active={activeFilter} onChange={onFilterChange} />
+      <FilterToolbar
+        filters={localFilters}
+        criticalCount={criticalCount}
+        highCount={highCount}
+        onSearchChange={onSearchChange}
+        onFiltersChange={onFiltersChange}
+        onClearAll={() => onResetView?.()}
+        onResetView={onResetView}
+      />
+
+      {/* ── Empty state — sits inside the normal layout, filters remain visible ─ */}
+      {appointments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center">
             <CalendarCheck className="w-7 h-7 text-brand-400 opacity-60" />
@@ -419,31 +428,12 @@ export function AppointmentTable({
             Yeni Randevu Formu
           </a>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="form-card !max-w-none p-0 overflow-visible">
-      <FilterTabs tabs={filterTabs} active={activeFilter} onChange={onFilterChange} />
-
-      <FilterToolbar
-        filters={localFilters}
-        criticalCount={criticalCount}
-        highCount={highCount}
-        onSearchChange={onSearchChange}
-        onFiltersChange={onFiltersChange}
-        onClearAll={clearLocalFilters}
-        onResetView={onResetView}
-      />
+      )}
 
       {/* ── Mobile card list (< sm) ────────────────────────────────────── */}
+      {appointments.length > 0 && (
       <div className="sm:hidden p-3 space-y-2">
-        {displayed.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-sm text-slate-400">Arama sonucu boş.</p>
-          </div>
-        ) : displayed.map((apt) => (
+        {displayed.map((apt) => (
           <MobileCard
             key={apt._id}
             apt={apt}
@@ -457,8 +447,10 @@ export function AppointmentTable({
           />
         ))}
       </div>
+      )}
 
       {/* ── Desktop table (≥ sm) ───────────────────────────────────────── */}
+      {appointments.length > 0 && (
       <div className="hidden sm:block overflow-auto max-h-[calc(100vh-24rem)] min-h-[180px]
                       [&::-webkit-scrollbar]:w-1.5
                       [&::-webkit-scrollbar-thumb]:rounded-full
@@ -495,13 +487,7 @@ export function AppointmentTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40">
-            {displayed.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-10 text-center text-sm text-slate-400">
-                  Arama veya filtre sonucu boş.
-                </td>
-              </tr>
-            ) : displayed.map((apt) => {
+            {displayed.map((apt) => {
               const isActing   = actingIds.has(apt._id);
               const isSelected = selected.has(apt._id);
               const urgencyCfg = apt.triage ? URGENCY_CONFIG[apt.triage.urgency] : null;
@@ -565,7 +551,9 @@ export function AppointmentTable({
           </tbody>
         </table>
       </div>
+      )}
 
+      {appointments.length > 0 && (
       <div className="px-5 py-2.5 border-t border-slate-100 dark:border-slate-700/40 flex items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
           {pagination.total > 0
@@ -595,6 +583,7 @@ export function AppointmentTable({
         )}
         <p className="text-xs text-slate-400">Her 30s otomatik yenilenir</p>
       </div>
+      )}
     </div>
   );
 }
