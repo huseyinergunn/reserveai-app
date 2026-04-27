@@ -28,10 +28,17 @@ export function signAdminToken(): string {
  * preventing XSS-based token theft.
  */
 export function setAuthCookie(res: Response, token: string): void {
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    // Secure flag only in production (HTTPS). In dev, browsers allow Secure
+    // cookies on localhost, but to avoid any edge-case mismatch we keep it
+    // off for HTTP dev servers.
+    secure:   isProd,
+    // 'strict' is ideal for prod but can silently break Vite's proxy in dev
+    // because Set-Cookie domain resolution differs from direct HTTPS.
+    // 'lax' is safe: it blocks CSRF while allowing same-site XHR cookies.
+    sameSite: isProd ? 'strict' : 'lax',
     maxAge:   8 * 60 * 60 * 1000, // 8 hours — matches JWT expiry
     path:     '/',
   });

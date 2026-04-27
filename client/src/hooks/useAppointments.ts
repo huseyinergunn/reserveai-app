@@ -110,12 +110,20 @@ export function useAppointments() {
   }, [state.archiveMode, state.filter, state.localFilters, state.pagination.page]);
 
   // ── Initial load + polling ───────────────────────────────────────────────
+  // Guard: redirect to login only on the INITIAL mount check (when there is no
+  // session flag at all). After that, 401 errors inside loadData() handle the
+  // redirect so we avoid a race condition where both code-paths fire at once.
+
+  const didMountRef = useRef(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !didMountRef.current) {
       window.location.href = '/admin/login';
       return;
     }
+    didMountRef.current = true;
+    if (!isAuthenticated) return; // loadData's 401 handler already navigating
+
     loadData();
     pollRef.current = setInterval(() => loadData(true), POLL_MS);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
