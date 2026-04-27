@@ -178,8 +178,9 @@ Kullanıcı randevu almak istediğinde şunu söyle: "Randevu almak için lütfe
   async customerChat(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
     try {
       const res = await this.client.chat.completions.create({
-        model: this.model,
+        model:      this.model,
         temperature: 0.4,
+        max_tokens: 200, // system prompt says 2-3 sentences; enforce it to cap latency
         messages: [
           { role: 'system', content: GroqService.CUSTOMER_SYSTEM },
           ...messages,
@@ -195,8 +196,9 @@ Kullanıcı randevu almak istediğinde şunu söyle: "Randevu almak için lütfe
   async analyzeAppointments(context: string, question: string): Promise<string> {
     try {
       const res = await this.client.chat.completions.create({
-        model: this.model,
+        model:       this.model,
         temperature: 0.3,
+        max_tokens:  300, // system prompt says max 4 sentences; cap tokens to reduce generation time
         messages: [
           {
             role: 'system',

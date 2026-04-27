@@ -1,15 +1,61 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useReducer, useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Send, Loader2, MessageSquareDashed, Sparkles, RotateCcw, RefreshCw, Trash2 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types & reducer
 // ---------------------------------------------------------------------------
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
+
+interface ChatState {
+  messages: Message[];
+  loading:  boolean;
+  isStuck:  boolean;
+}
+
+type ChatAction =
+  | { type: 'SEND';    question: string }
+  | { type: 'SUCCESS'; answer:   string }
+  | { type: 'ERROR';   msg:      string }
+  | { type: 'STUCK' }
+  | { type: 'RESET' };
+
+function chatReducer(state: ChatState, action: ChatAction): ChatState {
+  switch (action.type) {
+    case 'SEND':
+      return {
+        messages: [...state.messages, { role: 'user', content: action.question }],
+        loading:  true,
+        isStuck:  false,
+      };
+    // SUCCESS and ERROR are atomic: message added AND loading cleared in ONE render.
+    // This guarantees the typing indicator never outlives the incoming message.
+    case 'SUCCESS':
+      return {
+        messages: [...state.messages, { role: 'assistant', content: action.answer }],
+        loading:  false,
+        isStuck:  false,
+      };
+    case 'ERROR':
+      return {
+        messages: [...state.messages, { role: 'assistant', content: action.msg }],
+        loading:  false,
+        isStuck:  false,
+      };
+    case 'STUCK':
+      return { ...state, isStuck: true };
+    case 'RESET':
+      return { messages: [], loading: false, isStuck: false };
+    default:
+      return state;
+  }
+}
+
+const initialState: ChatState = { messages: [], loading: false, isStuck: false };
 
 const QUICK_QUESTIONS = [
   'En yoğun saatim hangisi?',
@@ -18,108 +64,111 @@ const QUICK_QUESTIONS = [
   'Son 7 günde kaç talep geldi?',
 ];
 
-// After this many ms with no response, show the recovery UI
 const RECOVERY_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // AIChat
 // ---------------------------------------------------------------------------
 
-// adminKey prop is kept for API compatibility but no longer used for auth
-// (JWT token is read directly from sessionStorage by adminHttp())
+// adminKey prop kept for API compatibility; auth uses httpOnly cookie directly
 export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
-  const [open, setOpen]         = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [isStuck, setIsStuck]   = useState(false);
+  const [state, dispatch] = useReducer(chatReducer, initialState);
+  const [input, setInput] = useState('');
 
-  const bottomRef       = useRef<HTMLDivElement>(null);
-  const inputRef        = useRef<HTMLInputElement>(null);
+  // Refs — stable, no re-render on change
+  const bottomRef        = useRef<HTMLDivElement>(null);
+  const inputDomRef      = useRef<HTMLInputElement>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingRef       = useRef(false);      // mirrors state.loading for stale-closure-free guard
+  const inputValueRef    = useRef('');         // mirrors `input` state for stale-closure-free read
+  const lastQuestionRef  = useRef('');         // last sent question for retry
 
-  // ── Auto-scroll ────────────────────────────────────────────────────────────
+  const [open, setOpen] = useState(false);
+
+  // Sync loadingRef whenever state changes
+  useEffect(() => { loadingRef.current = state.loading; }, [state.loading]);
+
+  // ── Auto-scroll — requestAnimationFrame waits for DOM paint; instant = no lag ─
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    const id = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [state.messages, state.loading]);
 
-  // ── Focus input on open ────────────────────────────────────────────────────
+  // ── Focus on open ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 150);
+    if (open) setTimeout(() => inputDomRef.current?.focus(), 150);
   }, [open]);
 
-  // ── Cleanup recovery timer on unmount ──────────────────────────────────────
+  // ── Cleanup on unmount ─────────────────────────────────────────────────────
 
   useEffect(() => {
     return () => { if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current); };
   }, []);
 
-  // ── Send ───────────────────────────────────────────────────────────────────
+  // ── Input handler — keeps ref in sync ──────────────────────────────────────
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    inputValueRef.current = e.target.value;
+  }, []);
+
+  // ── Send — stable ([] deps) because it reads from refs, not state ──────────
 
   const send = useCallback(async (text?: string) => {
-    const q = (text ?? input).trim();
-    if (!q || loading) return;
+    const q = (text ?? inputValueRef.current).trim();
+    if (!q || loadingRef.current) return;
 
-    // Pre-flight: check connectivity before bothering the server
+    // Pre-flight connectivity check
     if (!navigator.onLine) {
-      setMessages((m) => [
-        ...m,
-        { role: 'user', content: q },
-        { role: 'assistant', content: 'İnternet bağlantısı algılanamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.' },
-      ]);
+      dispatch({ type: 'SEND',  question: q });
+      dispatch({ type: 'ERROR', msg: 'İnternet bağlantısı algılanamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.' });
       return;
     }
 
+    lastQuestionRef.current = q;
     setInput('');
-    setIsStuck(false);
-    setMessages((m) => [...m, { role: 'user', content: q }]);
-    setLoading(true);
+    inputValueRef.current = '';
+    dispatch({ type: 'SEND', question: q });
 
-    // Start recovery timer — if no response arrives in time, surface the retry UI
-    recoveryTimerRef.current = setTimeout(() => setIsStuck(true), RECOVERY_MS);
+    recoveryTimerRef.current = setTimeout(() => dispatch({ type: 'STUCK' }), RECOVERY_MS);
 
     try {
       const { answer } = await adminApi.analyze(q);
-      setMessages((m) => [...m, { role: 'assistant', content: answer }]);
+      // Single dispatch → single render: typing indicator and new message swap atomically
+      dispatch({ type: 'SUCCESS', answer });
     } catch (err: unknown) {
       const e   = err as { error?: string; message?: string };
       const raw = e?.error ?? e?.message ?? '';
-      // Distinguish timeout / connectivity from generic AI errors
       const msg = raw.includes('yoğun') || raw.includes('zaman') || raw.includes('timeout')
         ? 'Şu an yoğunluk var, lütfen birkaç saniye bekleyip tekrar deneyin.'
         : raw || 'Bir hata oluştu. Lütfen tekrar deneyin.';
-      setMessages((m) => [...m, { role: 'assistant', content: msg }]);
+      dispatch({ type: 'ERROR', msg });
     } finally {
       if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
-      setIsStuck(false);
-      setLoading(false);
     }
-  }, [input, loading]);
+  }, []); // stable — no deps needed because all values come from refs
 
-  // ── Recovery actions ───────────────────────────────────────────────────────
+  // ── Recovery — stable (no messages / send deps) ────────────────────────────
 
   const handleRetry = useCallback(() => {
-    // Pull the last user message and resend
-    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
-    setIsStuck(false);
-    setLoading(false);
-    if (lastUser) {
-      // Small delay so state settles before re-entry
-      setTimeout(() => send(lastUser.content), 50);
-    }
-  }, [messages, send]);
+    dispatch({ type: 'RESET' });
+    const q = lastQuestionRef.current;
+    if (q) setTimeout(() => send(q), 50);
+  }, [send]);
 
   const handleReset = useCallback(() => {
     if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
-    setMessages([]);
-    setLoading(false);
-    setIsStuck(false);
+    dispatch({ type: 'RESET' });
   }, []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  const { messages, loading, isStuck } = state;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
@@ -140,7 +189,9 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 dark:text-white leading-none">Analitik Asistan</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Randevularınız hakkında soru sorun</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {loading ? 'Analiz ediliyor…' : 'Randevularınız hakkında soru sorun'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -164,7 +215,7 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5 [&::-webkit-scrollbar]:hidden min-h-0">
-            {messages.length === 0 && (
+            {messages.length === 0 && !loading && (
               <div className="text-center py-4 space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center mx-auto">
                   <MessageSquareDashed className="w-6 h-6 text-brand-500 opacity-70" />
@@ -206,7 +257,7 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
               </div>
             ))}
 
-            {/* Typing indicator + recovery UI */}
+            {/* Typing indicator — shown only while loading; disappears the same render a message arrives */}
             {loading && (
               <div className="flex flex-col gap-2">
                 <div className="flex justify-start items-end gap-1.5">
@@ -222,7 +273,7 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
                   </div>
                 </div>
 
-                {/* Recovery UI — appears after RECOVERY_MS with no response */}
+                {/* Recovery UI — fades in after RECOVERY_MS */}
                 {isStuck && (
                   <div className="ml-6 flex flex-col gap-1.5 animate-fade-in">
                     <p className="text-[10px] text-slate-400 dark:text-slate-500">
@@ -257,29 +308,31 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
           </div>
 
           {/* Input */}
-          <div className="px-3 py-2.5 border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 flex-shrink-0 bg-white/50 dark:bg-slate-900/50">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Soru sorun…"
-              disabled={loading}
-              className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 outline-none
-                         text-slate-700 dark:text-slate-300 placeholder-slate-400 border border-transparent
-                         focus:border-brand-300 dark:focus:border-brand-500/50 transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            <button
-              onClick={() => send()}
-              disabled={loading || !input.trim()}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-brand-500 text-white
-                         hover:bg-brand-600 disabled:opacity-40 transition-all hover:scale-105 active:scale-95 flex-shrink-0"
-            >
-              {loading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <Send className="w-3.5 h-3.5" />}
-            </button>
+          <div className="px-3 py-2.5 border-t border-slate-200 dark:border-slate-700/50 flex-shrink-0 bg-white/50 dark:bg-slate-900/50">
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputDomRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                placeholder="Soru sorun…"
+                disabled={loading}
+                className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 outline-none
+                           text-slate-700 dark:text-slate-300 placeholder-slate-400 border border-transparent
+                           focus:border-brand-300 dark:focus:border-brand-500/50 transition-colors
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <button
+                onClick={() => send()}
+                disabled={loading || !input.trim()}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-brand-500 text-white
+                           hover:bg-brand-600 disabled:opacity-40 transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+              >
+                {loading
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Send className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
       )}
