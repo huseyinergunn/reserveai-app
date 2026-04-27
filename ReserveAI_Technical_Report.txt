@@ -40,11 +40,12 @@ Problem Tanımı:
 ─────────────────────────────────────────────────────────────────────────────
 
 2.1 Frontend
-  Çerçeve : React 18 + Vite 5
-  Dil      : TypeScript (strict mode)
-  Stil     : Tailwind CSS v3 + class-variance-authority (cva)
-  State    : useReducer tabanlı özel state machine
-  Yardımcı : clsx + tailwind-merge → cn() utility
+  Çerçeve   : React 18 + Vite 5
+  Dil       : TypeScript (strict mode)
+  Stil      : Tailwind CSS v3 + class-variance-authority (cva)
+  Animasyon : Framer Motion 12
+  State     : useReducer tabanlı özel state machine
+  Yardımcı  : clsx + tailwind-merge → cn() utility
 
   Tercih Gerekçeleri:
   • Vite, Create React App'e kıyasla soğuk başlatmada ~10× daha hızlıdır;
@@ -59,12 +60,15 @@ Problem Tanımı:
   • cn() = clsx + tailwind-merge: çakışan Tailwind utility'leri (örn.
     "py-2 py-4") deterministik biçimde birleştirir; dinamik className
     üretiminde öncelik sorununu ortadan kaldırır.
+  • Framer Motion 12: BentoCarousel bileşeninde whileInView +
+    viewport={{ once:false }} kombinasyonu kullanıldı; kullanıcı her
+    kaydırıp geri döndüğünde animasyon yeniden tetiklenir.
 
 2.2 Backend
   Çerçeve  : Node.js 20 + Express 4
   Dil      : TypeScript (strict mode)
   Mimari   : Controller → Service → Repository katman ayrımı
-  Logger   : Pino (structured JSON logging, production-ready)
+  Logger   : Winston (structured JSON logging, production-ready)
 
   Tercih Gerekçeleri:
   • TypeScript, istemci ile sunucu arasındaki shared/types.ts üzerinden
@@ -73,8 +77,8 @@ Problem Tanımı:
     derleme zamanında yakalanır.
   • Controller-Service ayrımı birim test edilebilirliği artırır; mock
     olmadan servis katmanı izole test edilebilir.
-  • Pino, console.log'a kıyasla 5× daha hızlıdır ve JSON çıktısıyla
-    Railway log aggregation'a uçtan uca izlenebilirlik sağlar.
+  • Winston: geliştirme ortamında renkli console çıktısı, production'da
+    JSON formatı; Railway log aggregation ile uçtan uca izlenebilirlik.
 
 2.3 Veritabanı
   Motor : MongoDB Atlas (M0 free tier → M10 production)
@@ -197,20 +201,76 @@ Problem Tanımı:
     analyzeLimiter: 30 istek / 15 dakika / IP
     → Groq maliyetini kontrol eder, DDoS yüzeyini daraltır
 
-3.4 Zamanlanmış Görevler (Cron — Railway)
+3.4 Türkçe E-posta Şablonları
+  Tüm müşteri ve yönetici e-postaları Türkçeye çevrildi (MailService,
+  FormController). Her şablonun konu satırı:
+
+    Talep alındı  → "Randevu Talebiniz Alındı — <tarih>"
+    Onaylandı     → "Randevunuz Onaylandı — <ref>"
+    Reddedildi    → "Randevu Talebiniz Reddedildi — <tarih>"
+    İptal edildi  → "Randevunuz İptal Edildi — <ref>"
+    Yönetici      → "Yeni Randevu Talebi — <ref>"
+
+  Form bot yanıtları (FAQ yönlendirmesi, onay bildirimi) de Türkçedir.
+
+3.5 E-posta ile İptal Talebi Akışı
+  Onay e-postasındaki iptal linkine ek olarak müşteri, randevu sorgulama
+  ekranından da iptal başlatabilir:
+
+    Kullanıcı → "Randevumu Sorgula" → e-posta gir → Sorgula
+      → GET /api/form/status
+      → pending/approved randevular → "İptal Talebi Gönder" butonu
+
+    POST /api/form/cancel-request { email, bookingReference }
+      → FormController.requestCancellation()
+      → AppointmentModel: email + bookingReference + status=pending|approved
+      → cancelUrl = /api/approval/cancel/:cancellationToken
+      → mailService.sendCancelLinkEmail() → güvenli iptal bağlantısı
+      → Kullanıcı maildeki linke tıklar → GET /api/approval/cancel/:token
+      → ApprovalController.cancelAppointment() → status=cancelled
+      → /?result=cancelled → ResultBanner bildirimi
+
+  Güvenlik: cancellationToken (64-char hex) API yanıtında asla dönmez;
+  yalnızca e-posta üzerinden iletilir. Link tek kullanımlıktır.
+
+3.6 Google Sheets — Akıllı Satır Tespiti
+  Problem:
+    values.append + INSERT_ROWS yöntemi, silinmiş randevulardan kalan
+    boş satırları "veri sonu" olarak yorumluyordu. Yeni satırlar mevcut
+    verinin çok altına yazılıyordu.
+
+  Çözüm:
+    Kolon A okunarak gerçek son dolu satır tespit edilir, ardından
+    INSERT_ROWS yerine values.update ile hedef satıra doğrudan yazılır.
+    Bu yaklaşım silme işlemlerinden kalan boşlukları tamamen ortadan
+    kaldırır.
+
+3.7 API Timeout — Cold Start Toleransı
+  Problem:
+    Railway ücretsiz katmanında soğuk başlatma 20–30 saniye sürebilir;
+    axios varsayılan 15s timeout bu pencerede ağ hatası üretiyordu.
+
+  Çözüm:
+    http instance timeout'u 40 saniyeye çıkarıldı. Hata mesajı da
+    Türkçeye çevrildi: "Sunucuya bağlanılamadı. Lütfen internet
+    bağlantınızı kontrol edip tekrar deneyin."
+
+3.8 Zamanlanmış Görevler (Cron — Railway)
   Railway'in cron servisi, aşağıdaki görevleri periyodik çalıştırır:
 
   Günlük 09:00 (Europe/Istanbul):
     → Onaylanmış ve yaklaşan (24 saat içinde) randevular bulunur
     → Müşteriye hatırlatma e-postası gönderilir (Gmail OAuth2)
-    → Geçmiş randevular "completed" statüsüne geçirilir
+
+  Günlük 23:59:
+    → Geçmiş onaylı randevular "completed" statüsüne geçirilir
 
   Mimari Karar — Neden Railway Cron:
     Vercel serverless ortamı uzun ömürlü cron işleri desteklemez.
     Backend zaten Railway'de deploy edildiğinden ayrı bir servis
     maliyeti oluşmadan cron görevi aynı infraya eklenir.
 
-3.5 Rate Limiting Katmanı
+3.9 Rate Limiting Katmanı
   express-rate-limit kütüphanesiyle iki ayrı limiter tanımlandı:
 
     chatLimiter    → 20 istek/dakika/IP   (müşteri chatbot)
@@ -352,9 +412,9 @@ Problem Tanımı:
 6. PROJE METRİKLERİ
 ─────────────────────────────────────────────────────────────────────────────
 
-  Kod tabanı boyutu  : ~4.200 satır (client + server, test hariç)
-  Component sayısı   : 23 ayrı React component
-  API endpoint sayısı: 14 (6 public, 8 JWT-korumalı admin)
+  Kod tabanı boyutu  : ~5.000 satır (client + server, test hariç)
+  Component sayısı   : 24 ayrı React component
+  API endpoint sayısı: 15 (7 public, 8 JWT-korumalı admin)
   Ortalama yanıt süresi (API): <120ms (AI hariç)
   AI triage süresi   : ~800ms (Groq, fire-and-forget)
   Admin analiz süresi: ~400ms (Groq + MongoDB aggregate)
@@ -476,13 +536,13 @@ Kod neden çalışıyor — bu soru daha değerli.
 
 🛠 TEKNİK YIĞIN
 
-Frontend : React 18 · TypeScript · Vite · Tailwind CSS · cva
-Backend  : Node.js · Express · TypeScript · Pino
+Frontend : React 18 · TypeScript · Vite · Tailwind CSS · cva · Framer Motion
+Backend  : Node.js · Express · TypeScript · Winston
 Veritabanı: MongoDB Atlas · Mongoose
 AI       : Groq (Llama 3.3-70b) · Gemini API · OpenAI (configurable)
 Auth     : JWT · Google OAuth2
 Entegrasyon: Google Calendar · Gmail · Google Sheets · n8n
-Deploy   : Railway (server) · Render (client)
+Deploy   : Railway (backend) · Render (frontend)
 
 
 ---

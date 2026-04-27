@@ -21,7 +21,12 @@
       "Bash(cat client/.gitignore)",
       "Bash(grep -rn \"gsk_\\\\|mongodb+srv\\\\|GOCSPX\\\\|1//04\\\\|admin-super-secret\\\\|db0246e4\" --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.json\" src server/src client/src)",
       "Bash(grep -E \"\\\\.env$|\\\\.env\\\\.\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('type:', p.type, '| build script:', p.scripts?.build\\)\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node scripts/seed-appointments.mjs)",
+      "Bash(git -C \"c:/Users/husoe/OneDrive/Masaüstü/smart-app\" status --short)"
     ]
   }
 }

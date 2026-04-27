@@ -26,17 +26,18 @@ Yapay zeka destekli, otonom triaj ve konuşmaya dayalı analitik yeteneklerine s
 | Katman | Teknoloji | Tercih Gerekçesi |
 |--------|-----------|-----------------|
 | Frontend | React 18 + Vite 5 + TypeScript | Vite ~10× hızlı HMR; strict TS derleme-zamanı tip kontrolü |
+| Animasyon | Framer Motion 12 | `whileInView` + `viewport={{ once:false }}` ile her görünüme girişte yeniden tetiklenen Bento animasyonları |
 | Stil | Tailwind CSS + cva | Tip güvenli varyant sistemi; tailwind-merge ile çakışma önleme |
 | State | useReducer + Custom Hook | 16 action type'lı state machine; Set<string> ile O(1) acting tracking |
 | Backend | Node.js 20 + Express 4 + TypeScript | shared/types.ts ile istemci-sunucu tip birliği |
-| Logger | Pino | console.log'dan 5× hızlı; Railway log aggregation için yapısal JSON |
+| Logger | Winston | Structured JSON logging; production-ready log seviyeleri |
 | Veritabanı | MongoDB Atlas + Mongoose | Şemasız esneklik; triage objesi sıfır migration ile eklendi |
 | AI (Birincil) | Groq API — Llama 3.3-70b | ~200ms gecikme; OpenAI'ye kıyasla ~10× daha hızlı |
 | AI (Alternatif) | Gemini 1.5-flash / GPT-4o-mini | Strategy Pattern ile hot-swap; tek env değişkeni yeterli |
 | Auth | JWT + Bearer Token | 8 saatlik session; TokenExpiredError / geçersiz token ayrımı |
 | Entegrasyon | Google Calendar, Gmail, Sheets | OAuth2 refresh token; SMTP yerine token tabanlı güvenli mail |
-| Otomasyon | n8n (Railway) | Webhook → onay/iptal iş akışları |
-| Deploy | Railway (server) + Render (client) | Ayrı infrastrüktür; bağımsız scaling |
+| Otomasyon | n8n | Webhook → onay/iptal iş akışları |
+| Deploy | Railway (backend) + Render (frontend) | Backend: Railway Web Service; Frontend: Render Static Site; GitHub push → otomatik deploy |
 
 ---
 
@@ -110,7 +111,44 @@ Client → POST /api/admin/analyze { question }
 - `analyzeLimiter`: 30 istek / 15 dakika / IP — Groq maliyetini korur
 - `chatLimiter`: 20 istek / dakika / IP — müşteri chatbot
 
-### 3.4 Zamanlanmış Görevler (Cron — Railway)
+### 3.4 Türkçe E-posta Şablonları
+
+Tüm müşteri ve yönetici e-postaları Türkçeye çevrildi (`MailService`, `FormController`):
+
+| Tetikleyici | Konu Satırı |
+|-------------|-------------|
+| Talep alındı | `Randevu Talebiniz Alındı — <tarih>` |
+| Onaylandı | `Randevunuz Onaylandı — <ref>` |
+| Reddedildi | `Randevu Talebiniz Reddedildi — <tarih>` |
+| İptal edildi | `Randevunuz İptal Edildi — <ref>` |
+| Yönetici bildirimi | `Yeni Randevu Talebi — <ref>` |
+
+Form bot yanıtları da Türkçedir (FAQ yönlendirme mesajı, onay bildirimi).
+
+---
+
+### 3.5 E-posta ile İptal Talebi Akışı
+
+Onay emailindeki iptal linkinin yanı sıra müşteri, randevu sorgulama ekranından da iptal başlatabilir:
+
+```
+Kullanıcı → "Randevumu Sorgula" sekmesi → e-posta gir → Sorgula
+  → GET /api/form/status
+  → pending/approved randevular → "🚫 İptal Talebi Gönder" butonu görünür
+
+Butona tıklama → POST /api/form/cancel-request { email, bookingReference }
+  → FormController.requestCancellation()
+  → AppointmentModel: email + bookingReference + status=pending|approved ile bul
+  → cancelUrl = /api/approval/cancel/:cancellationToken oluştur
+  → mailService.sendCancelLinkEmail() → kullanıcıya güvenli iptal bağlantısı
+  → Kullanıcı maildeki linke tıklar → GET /api/approval/cancel/:token
+  → ApprovalController.cancelAppointment() → status=cancelled, takvim silme
+  → /?result=cancelled yönlendirme → ResultBanner bildirim
+```
+
+**Güvenlik:** `cancellationToken` (64-char hex) API yanıtında asla dönmez; yalnızca e-posta üzerinden iletilir. İptal linki tek kullanımlıktır.
+
+### 3.6 Zamanlanmış Görevler (Cron — Railway)
 
 | Zamanlama | Görev |
 |-----------|-------|
@@ -175,6 +213,32 @@ Groq, bağlam olmaksızın "Randevunuz başarıyla alındı 🎉" üretmeye baş
 2. Booking akışının deterministik adımlarında (isim/e-posta toplama) **LLM tamamen devre dışı**.
 3. Sadece sınıflandırma ve triage noktalarında Groq çağrısı yapılır.
 
+### 4.5 Google Sheets — Akıllı Satır Tespiti
+
+**Problem:**  
+`values.append` + `INSERT_ROWS` yöntemi, sililinmiş randevulardan kalan boş satırları "veri sonu" olarak yorumluyordu. Yeni satırlar mevcut verinin çok altına yazılıyordu.
+
+**Çözüm:**  
+```typescript
+// Kolon A'yı okuyarak gerçek son dolu satırı bul
+const colARes = await sheets.spreadsheets.values.get({ range: `${sheetName}!A:A` });
+let lastFilledRow = 0;
+for (let i = colAValues.length - 1; i >= 0; i--) {
+  if (colAValues[i]?.[0]?.trim()) { lastFilledRow = i + 1; break; }
+}
+// INSERT_ROWS yerine hedef satıra doğrudan yaz
+await sheets.spreadsheets.values.update({ range: `${sheetName}!A${lastFilledRow + 1}:...` });
+```
+
+Bu yaklaşım, silme işlemlerinden kalan boşlukları tamamen ortadan kaldırır.
+
+### 4.6 API Timeout — Cold Start Toleransı
+
+**Problem:** Railway ücretsiz katmanında soğuk başlatma (cold start) 20–30 saniye sürebilir; `axios` varsayılan 15s timeout bu pencerede ağ hatası üretiyordu.
+
+**Çözüm:** `http` instance timeout'u **40 saniye**ye çıkarıldı. Hata mesajı da Türkçeye çevrildi:  
+`"Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin."`
+
 ---
 
 ## 5. Güvenlik Katmanları (Özet)
@@ -208,9 +272,9 @@ Groq, bağlam olmaksızın "Randevunuz başarıyla alındı 🎉" üretmeye baş
 
 | Metrik | Değer |
 |--------|-------|
-| Toplam kaynak satırı | ~4.200 (test hariç) |
-| React component sayısı | 23 |
-| API endpoint sayısı | 14 (6 public, 8 JWT-korumalı) |
+| Toplam kaynak satırı | ~5.000 (test hariç) |
+| React component sayısı | 24 |
+| API endpoint sayısı | 15 (7 public, 8 JWT-korumalı) |
 | Ortalama API yanıt süresi | < 120ms (AI hariç) |
 | AI triage süresi | ~800ms (fire-and-forget) |
 | Admin analiz süresi | ~400ms |
