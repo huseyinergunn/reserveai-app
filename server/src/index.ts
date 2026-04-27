@@ -55,6 +55,13 @@ const allowedOrigins = (process.env.CLIENT_URL ?? 'http://localhost:5173')
   .map((o) => o.trim())
   .filter(Boolean);
 
+if (process.env.NODE_ENV === 'production' && !process.env.CLIENT_URL) {
+  process.stderr.write(
+    '\n⚠️  CLIENT_URL env değişkeni ayarlı değil! ' +
+    'Production CORS çalışmaz ve çerezler bloke edilir.\n\n',
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Dependency wiring
 // ---------------------------------------------------------------------------
@@ -140,8 +147,21 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
+
+// Cross-Origin Resource Sharing
+// credentials:true + specific origin is REQUIRED for httpOnly cookie auth.
+// When frontend and backend live on different TLD+1s (e.g. Vercel vs Render)
+// the browser treats requests as cross-site; the origin must be exact — never '*'.
 const corsOptions = {
-  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+  origin(
+    requestOrigin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) {
+    // Server-to-server or same-origin requests have no Origin header → allow.
+    if (!requestOrigin) return callback(null, true);
+    if (allowedOrigins.includes(requestOrigin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${requestOrigin}' is not allowed`));
+  },
   credentials:    true,
   methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

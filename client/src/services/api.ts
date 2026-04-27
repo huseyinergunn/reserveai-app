@@ -162,7 +162,7 @@ function adminHttp() {
       const status = err.response?.status as number | undefined;
       if (status === 401 || status === 403) {
         sessionStorage.removeItem(ADMIN_SESSION_KEY);
-        return Promise.reject({ error: data?.error ?? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.' });
+        return Promise.reject({ error: data?.error ?? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.', isAuthError: true });
       }
       return Promise.reject(
         data && typeof data === 'object'

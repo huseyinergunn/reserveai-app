@@ -148,7 +148,7 @@ HİZMET BİLGİLERİ:
 - Hafta içi (Pazartesi–Cuma), 09:00–18:00 saatleri arasında randevu alınabilir
 
 FİYATLANDIRMA:
-- Başlangıç: Ücretsiz — Aylık 10 randevu, temel AI, e-posta onayı
+- Başlangıç: Ücretsiz — Aylık 100 randevu, temel AI, e-posta onayı
 - Pro: ₺299/ay — Sınırsız randevu, gelişmiş AI (Groq + GPT), Google Takvim senkronizasyonu, n8n entegrasyonu, öncelikli destek
 - Kurumsal: Özel fiyat — Tüm Pro özellikleri + 7/24 özel destek ve özel entegrasyonlar
 

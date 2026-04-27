@@ -274,7 +274,7 @@ const PLANS: Plan[] = [
     description: 'Bireysel kullanım ve proje denemeleri için',
     icon:        Sparkles,
     features: [
-      { text: 'Aylık 10 randevu',           included: true  },
+      { text: 'Aylık 100 randevu',           included: true  },
       { text: 'Temel AI sınıflandırma',      included: true  },
       { text: 'E-posta onayı',               included: true  },
       { text: 'Standart destek',             included: true  },

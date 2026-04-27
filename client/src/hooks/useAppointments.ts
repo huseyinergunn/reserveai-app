@@ -97,13 +97,14 @@ export function useAppointments() {
       });
       prevPendingRef.current = statsData?.pending ?? 0;
     } catch (err: unknown) {
-      const e   = err as { error?: string; message?: string };
-      const msg = e?.error ?? e?.message ?? 'Sunucuya bağlanılamadı.';
-      if (msg.toLowerCase().includes('oturum') || msg.toLowerCase().includes('token')) {
+      const e   = err as { error?: string; message?: string; isAuthError?: boolean };
+      if (e?.isAuthError) {
         sessionStorage.removeItem(STORAGE_KEY);
         window.location.href = '/admin/login';
-      } else if (!silent) {
-        dispatch({ type: 'LOAD_ERROR', error: msg });
+        return;
+      }
+      if (!silent) {
+        dispatch({ type: 'LOAD_ERROR', error: e?.error ?? e?.message ?? 'Sunucuya bağlanılamadı.' });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

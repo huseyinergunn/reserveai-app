@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, CookieOptions } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 
@@ -23,30 +23,51 @@ export function signAdminToken(): string {
   return jwt.sign({ role: 'admin' }, getSecret(), { expiresIn: '8h' });
 }
 
+// ---------------------------------------------------------------------------
+// Cookie helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the cookie options for the current environment.
+ *
+ * Production (NODE_ENV=production):
+ *   - secure: true      → HTTPS only (mandatory for SameSite=None)
+ *   - sameSite: 'none'  → allows the cookie to be sent in cross-site XHR
+ *                         (Vercel frontend ↔ Render backend are different TLD+1s)
+ *
+ * Development:
+ *   - secure: false     → plain HTTP on localhost is fine
+ *   - sameSite: 'lax'   → blocks cross-site POSTs (CSRF) while still working
+ *                         through the Vite proxy
+ *
+ * IMPORTANT: clearAuthCookie MUST use the same sameSite/secure values,
+ * otherwise some browsers refuse to clear a previously-set cookie.
+ */
+function cookieOptions(): CookieOptions {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure:   isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge:   8 * 60 * 60 * 1000, // 8 h — matches JWT expiry
+    path:     '/',
+  };
+}
+
 /**
  * Sets the admin JWT as an httpOnly cookie — invisible to JavaScript,
  * preventing XSS-based token theft.
  */
 export function setAuthCookie(res: Response, token: string): void {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    // Secure flag only in production (HTTPS). In dev, browsers allow Secure
-    // cookies on localhost, but to avoid any edge-case mismatch we keep it
-    // off for HTTP dev servers.
-    secure:   isProd,
-    // 'strict' is ideal for prod but can silently break Vite's proxy in dev
-    // because Set-Cookie domain resolution differs from direct HTTPS.
-    // 'lax' is safe: it blocks CSRF while allowing same-site XHR cookies.
-    sameSite: isProd ? 'strict' : 'lax',
-    maxAge:   8 * 60 * 60 * 1000, // 8 hours — matches JWT expiry
-    path:     '/',
-  });
+  res.cookie(COOKIE_NAME, token, cookieOptions());
 }
 
 /** Clears the auth cookie on logout or session expiry. */
 export function clearAuthCookie(res: Response): void {
-  res.clearCookie(COOKIE_NAME, { path: '/' });
+  // Must mirror the same sameSite/secure flags used when setting the cookie,
+  // otherwise browsers may silently refuse to clear it.
+  const { maxAge: _drop, ...clearOpts } = cookieOptions();
+  res.clearCookie(COOKIE_NAME, clearOpts);
 }
 
 /**
