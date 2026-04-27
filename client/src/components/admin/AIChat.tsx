@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, X, Send, Loader2, MessageSquareDashed, Sparkles, RotateCcw } from 'lucide-react';
+import { Bot, X, Send, Loader2, MessageSquareDashed, Sparkles, RotateCcw, RefreshCw, Trash2 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
 // ---------------------------------------------------------------------------
@@ -18,6 +18,9 @@ const QUICK_QUESTIONS = [
   'Son 7 günde kaç talep geldi?',
 ];
 
+// After this many ms with no response, show the recovery UI
+const RECOVERY_MS = 15_000;
+
 // ---------------------------------------------------------------------------
 // AIChat
 // ---------------------------------------------------------------------------
@@ -25,39 +28,98 @@ const QUICK_QUESTIONS = [
 // adminKey prop is kept for API compatibility but no longer used for auth
 // (JWT token is read directly from sessionStorage by adminHttp())
 export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
-  const [open, setOpen]       = useState(false);
+  const [open, setOpen]         = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const bottomRef             = useRef<HTMLDivElement>(null);
-  const inputRef              = useRef<HTMLInputElement>(null);
+  const [input, setInput]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [isStuck, setIsStuck]   = useState(false);
+
+  const bottomRef       = useRef<HTMLDivElement>(null);
+  const inputRef        = useRef<HTMLInputElement>(null);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Auto-scroll ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // ── Focus input on open ────────────────────────────────────────────────────
+
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 150);
   }, [open]);
 
+  // ── Cleanup recovery timer on unmount ──────────────────────────────────────
+
+  useEffect(() => {
+    return () => { if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current); };
+  }, []);
+
+  // ── Send ───────────────────────────────────────────────────────────────────
+
   const send = useCallback(async (text?: string) => {
     const q = (text ?? input).trim();
     if (!q || loading) return;
+
+    // Pre-flight: check connectivity before bothering the server
+    if (!navigator.onLine) {
+      setMessages((m) => [
+        ...m,
+        { role: 'user', content: q },
+        { role: 'assistant', content: 'İnternet bağlantısı algılanamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.' },
+      ]);
+      return;
+    }
+
     setInput('');
+    setIsStuck(false);
     setMessages((m) => [...m, { role: 'user', content: q }]);
     setLoading(true);
+
+    // Start recovery timer — if no response arrives in time, surface the retry UI
+    recoveryTimerRef.current = setTimeout(() => setIsStuck(true), RECOVERY_MS);
+
     try {
       const { answer } = await adminApi.analyze(q);
       setMessages((m) => [...m, { role: 'assistant', content: answer }]);
-    } catch {
-      setMessages((m) => [
-        ...m,
-        { role: 'assistant', content: 'Bir hata oluştu, lütfen tekrar deneyin.' },
-      ]);
+    } catch (err: unknown) {
+      const e   = err as { error?: string; message?: string };
+      const raw = e?.error ?? e?.message ?? '';
+      // Distinguish timeout / connectivity from generic AI errors
+      const msg = raw.includes('yoğun') || raw.includes('zaman') || raw.includes('timeout')
+        ? 'Şu an yoğunluk var, lütfen birkaç saniye bekleyip tekrar deneyin.'
+        : raw || 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      setMessages((m) => [...m, { role: 'assistant', content: msg }]);
     } finally {
+      if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
+      setIsStuck(false);
       setLoading(false);
     }
   }, [input, loading]);
+
+  // ── Recovery actions ───────────────────────────────────────────────────────
+
+  const handleRetry = useCallback(() => {
+    // Pull the last user message and resend
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
+    setIsStuck(false);
+    setLoading(false);
+    if (lastUser) {
+      // Small delay so state settles before re-entry
+      setTimeout(() => send(lastUser.content), 50);
+    }
+  }, [messages, send]);
+
+  const handleReset = useCallback(() => {
+    if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
+    setMessages([]);
+    setLoading(false);
+    setIsStuck(false);
+  }, []);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
@@ -84,7 +146,7 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
                 <button
-                  onClick={() => setMessages([])}
+                  onClick={handleReset}
                   title="Yeni sohbet"
                   className="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
@@ -115,8 +177,9 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
                     <button
                       key={q}
                       onClick={() => send(q)}
+                      disabled={loading}
                       className="px-2.5 py-1 rounded-full text-[10px] font-medium border border-brand-300/50 dark:border-brand-500/30
-                                 text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                                 text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors disabled:opacity-40"
                     >
                       {q}
                     </button>
@@ -143,19 +206,50 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
               </div>
             ))}
 
-            {/* Typing indicator */}
+            {/* Typing indicator + recovery UI */}
             {loading && (
-              <div className="flex justify-start items-end gap-1.5">
-                <div className="w-5 h-5 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-3 h-3 text-brand-500" />
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-sm px-3 py-2.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:300ms]" />
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-start items-end gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-brand-500/15 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-3 h-3 text-brand-500" />
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-sm px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                    </div>
                   </div>
                 </div>
+
+                {/* Recovery UI — appears after RECOVERY_MS with no response */}
+                {isStuck && (
+                  <div className="ml-6 flex flex-col gap-1.5 animate-fade-in">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Bu kadar sürmemeli. Ne yapmak istersiniz?
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={handleRetry}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium
+                                   bg-brand-500/10 text-brand-600 dark:text-brand-400
+                                   hover:bg-brand-500/20 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Tekrar Dene
+                      </button>
+                      <button
+                        onClick={handleReset}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium
+                                   bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400
+                                   hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Sıfırla
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -170,9 +264,11 @@ export function AIChat({ adminKey: _adminKey }: { adminKey: string }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Soru sorun…"
+              disabled={loading}
               className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 outline-none
                          text-slate-700 dark:text-slate-300 placeholder-slate-400 border border-transparent
-                         focus:border-brand-300 dark:focus:border-brand-500/50 transition-colors"
+                         focus:border-brand-300 dark:focus:border-brand-500/50 transition-colors
+                         disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={() => send()}

@@ -2,6 +2,17 @@ import type { Request, Response } from 'express';
 import type { AiService } from '../services/ai/AiService';
 import { logger } from '../utils/logger';
 
+const AI_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error('AI_TIMEOUT'), { code: 'AI_TIMEOUT' })), ms),
+    ),
+  ]);
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -44,11 +55,20 @@ export class ChatController {
     const trimmed = sanitised.slice(-20);
 
     try {
-      const response = await this.deps.aiService.customerChat(trimmed);
+      const response = await withTimeout(
+        this.deps.aiService.customerChat(trimmed),
+        AI_TIMEOUT_MS,
+      );
       res.status(200).json({ response });
     } catch (err) {
-      logger.error('[ChatController] customerChat failed:', err);
-      res.status(500).json({ error: 'AI servisi şu an yanıt veremiyor. Lütfen tekrar deneyin.' });
+      const isTimeout = (err as { code?: string }).code === 'AI_TIMEOUT';
+      if (isTimeout) {
+        logger.warn('[ChatController] customerChat timed out');
+        res.status(504).json({ error: 'Şu an yoğunluk var, lütfen tekrar deneyin.' });
+      } else {
+        logger.error('[ChatController] customerChat failed:', err);
+        res.status(500).json({ error: 'AI servisi şu an yanıt veremiyor. Lütfen tekrar deneyin.' });
+      }
     }
   };
 }

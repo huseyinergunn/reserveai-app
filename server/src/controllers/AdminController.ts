@@ -1,6 +1,17 @@
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
+
+const AI_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error('AI_TIMEOUT'), { code: 'AI_TIMEOUT' })), ms),
+    ),
+  ]);
+}
 import { DateTime } from 'luxon';
 import type { CalendarService } from '../services/calendar/CalendarService';
 import type { MailService } from '../services/mail/MailService';
@@ -218,11 +229,20 @@ export class AdminController {
         })),
       }, null, 2);
 
-      const answer = await this.deps.aiService.analyzeAppointments(context, question.trim());
+      const answer = await withTimeout(
+        this.deps.aiService.analyzeAppointments(context, question.trim()),
+        AI_TIMEOUT_MS,
+      );
       res.status(200).json({ answer });
     } catch (err) {
-      logger.error('[AdminController] analyzeData failed:', err);
-      res.status(500).json({ error: 'Analiz sırasında bir hata oluştu.' });
+      const isTimeout = (err as { code?: string }).code === 'AI_TIMEOUT';
+      if (isTimeout) {
+        logger.warn('[AdminController] analyzeData timed out');
+        res.status(504).json({ error: 'Şu an yoğunluk var, lütfen tekrar deneyin.' });
+      } else {
+        logger.error('[AdminController] analyzeData failed:', err);
+        res.status(500).json({ error: 'Analiz sırasında bir hata oluştu.' });
+      }
     }
   };
 
