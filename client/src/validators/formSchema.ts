@@ -94,4 +94,6 @@ export type Step3Input = z.input<typeof step3Schema>;
 export interface StepResult {
   /** Field-keyed error map returned by the API (422 responses). */
   fieldErrors?: Record<string, string>;
+  /** ISO string of the next available slot — set on 409 double-booking conflicts. */
+  nextAvailable?: string | null;
 }

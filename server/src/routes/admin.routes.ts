@@ -6,8 +6,9 @@ import { analyzeLimiter } from '../middleware/rateLimiter';
 export function createAdminRouter(controller: AdminController): Router {
   const router = Router();
 
-  // Public — no JWT required (this IS the login endpoint)
-  router.post('/login', controller.login);
+  // Public — no JWT required
+  router.post('/login',  controller.login);
+  router.post('/logout', controller.logout);
 
   // All routes below require a valid admin JWT
   router.use(requireAdminAuth);

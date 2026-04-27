@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DateTime } from 'luxon';
 import { CalendarDays, Clock, User, Mail, AlertCircle, Sparkles, TriangleAlert } from 'lucide-react';
+import { formatDisplayDateTime } from '@shared/dateUtils';
 import { useAppointment } from '../../hooks/useAppointment';
 import { Button } from '../ui/Button';
 import { step3Schema, type Step3Input, type Step3Values } from '../../validators/formSchema';
@@ -64,6 +65,8 @@ export function Step3() {
     extractedData, clientDates, loadDateOptions, submitStep3,
   } = useAppointment();
 
+  const [nextAvailableSuggestion, setNextAvailableSuggestion] = useState<string | null>(null);
+
   useEffect(() => { loadDateOptions(); }, [loadDateOptions]);
 
   const availableDates = dateOptions?.dates ?? clientDates;
@@ -120,13 +123,16 @@ export function Step3() {
   const isSelectedTimeBooked = selectedTime ? isTimeBooked(selectedTime) : false;
 
   const onSubmit = async (data: Step3Input) => {
+    setNextAvailableSuggestion(null);
     const result = await submitStep3(data as Step3Values);
     if (result.fieldErrors) {
       for (const [field, message] of Object.entries(result.fieldErrors)) {
         if (field === 'date' || field === 'time' || field === 'dateTime') {
-          // dateTime conflict errors appear under the time selector, not date
           setError(field === 'dateTime' ? 'time' : (field as keyof Step3Values), { message });
         }
+      }
+      if (result.nextAvailable) {
+        setNextAvailableSuggestion(result.nextAvailable);
       }
     }
   };
@@ -261,6 +267,13 @@ export function Step3() {
           <p className="form-error">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
             {errors.time.message}
+          </p>
+        )}
+        {nextAvailableSuggestion && !errors.time && (
+          <p className="mt-1.5 text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
+            <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+            En yakın müsait:{' '}
+            <strong>{formatDisplayDateTime(nextAvailableSuggestion, 'Europe/Istanbul')}</strong>
           </p>
         )}
       </div>

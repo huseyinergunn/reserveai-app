@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import {
   CheckCircle2, XCircle, Ban, Award, Eye,
   CheckSquare, Square, Loader2, CalendarDays, CalendarCheck,
-  Search, X, AlertTriangle, RotateCcw,
+  Search, X, AlertTriangle, RotateCcw, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { DateTime } from 'luxon';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/cn';
 import type { AdminAppointment, AppointmentTriage } from '../../services/api';
+import type { LocalFilters, Pagination, DateFilter } from '../../store/adminReducer';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE } from '@shared/constants';
 
@@ -24,7 +23,7 @@ export const STATUS_CONFIG = {
 } as const;
 
 export const URGENCY_CONFIG = {
-  CRITICAL: { label: 'ACİL',    badge: 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/50 animate-pulse', row: 'border-l-2 border-l-red-500', dot: 'bg-red-500' },
+  CRITICAL: { label: 'ACİL',    badge: 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/50', row: 'border-l-2 border-l-red-500', dot: 'bg-red-500' },
   HIGH:     { label: 'ÖNEMLİ', badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-400/50',        row: 'border-l-2 border-l-amber-400', dot: 'bg-amber-500' },
   NORMAL:   null,
   LOW:      null,
@@ -229,57 +228,8 @@ function MobileCard({ apt, isSelected, isActing, actingAction, isBusy, onToggle,
 }
 
 // ---------------------------------------------------------------------------
-// Local filter helpers
+// Local filter helpers removed — filtering is now server-side
 // ---------------------------------------------------------------------------
-
-type DateFilter = 'all' | 'today' | 'tomorrow' | 'week';
-
-function applyLocalFilters(
-  appointments: AdminAppointment[],
-  search: string,
-  dateFilter: DateFilter,
-  showCritical: boolean,
-  showHigh: boolean,
-): AdminAppointment[] {
-  const now         = DateTime.now().setZone(TIMEZONE);
-  const todayStr    = now.toFormat('yyyy-MM-dd');
-  const tomorrowStr = now.plus({ days: 1 }).toFormat('yyyy-MM-dd');
-  const weekEndStr  = now.endOf('week').toFormat('yyyy-MM-dd');
-
-  let result = appointments.filter((apt) => {
-    // Text search — independent of all other filters
-    if (search) {
-      const q = search.toLowerCase();
-      if (!apt.name.toLowerCase().includes(q) && !apt.email.toLowerCase().includes(q)) return false;
-    }
-
-    // Date filter — independent of urgency
-    if (dateFilter !== 'all') {
-      const dayStr = DateTime.fromISO(apt.dateTime, { zone: TIMEZONE }).toFormat('yyyy-MM-dd');
-      if (dateFilter === 'today'    && dayStr !== todayStr)                        return false;
-      if (dateFilter === 'tomorrow' && dayStr !== tomorrowStr)                     return false;
-      if (dateFilter === 'week'     && (dayStr < todayStr || dayStr > weekEndStr)) return false;
-    }
-
-    // Urgency filter — only active when at least one urgency button is toggled on.
-    // When neither button is active, ALL urgency levels pass through.
-    if (showCritical || showHigh) {
-      const u = apt.triage?.urgency;
-      const passesCritical = showCritical && u === 'CRITICAL';
-      const passesHigh     = showHigh     && u === 'HIGH';
-      if (!passesCritical && !passesHigh) return false;
-    }
-
-    return true;
-  });
-
-  // Sort by AI clarity score only when urgency filter is active
-  if (showCritical || showHigh) {
-    result = [...result].sort((a, b) => (b.triage?.clarity ?? 0) - (a.triage?.clarity ?? 0));
-  }
-
-  return result;
-}
 
 // ---------------------------------------------------------------------------
 // Filter toolbar — search + date + urgency
@@ -292,25 +242,21 @@ const DATE_OPTS: { key: DateFilter; label: string }[] = [
 ];
 
 interface FilterToolbarProps {
-  search:           string;
-  dateFilter:       DateFilter;
-  showCritical:     boolean;
-  showHigh:         boolean;
+  filters:          LocalFilters;
   criticalCount:    number;
   highCount:        number;
   onSearchChange:   (v: string) => void;
-  onDateFilter:     (v: DateFilter) => void;
-  onToggleCritical: () => void;
-  onToggleHigh:     () => void;
+  onFiltersChange:  (patch: Partial<LocalFilters>) => void;
   onClearAll:       () => void;
   onResetView?:     () => void;
 }
 
 function FilterToolbar({
-  search, dateFilter, showCritical, showHigh, criticalCount, highCount,
-  onSearchChange, onDateFilter, onToggleCritical, onToggleHigh, onClearAll, onResetView,
+  filters, criticalCount, highCount,
+  onSearchChange, onFiltersChange, onClearAll, onResetView,
 }: FilterToolbarProps) {
-  const hasFilters = !!search || dateFilter !== 'all' || showCritical || showHigh;
+  const { search, dateRange, showCritical, showHigh } = filters;
+  const hasFilters = !!search || dateRange !== 'all' || showCritical || showHigh;
 
   return (
     <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap items-center gap-2">
@@ -340,10 +286,10 @@ function FilterToolbar({
         {DATE_OPTS.map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => onDateFilter(dateFilter === key ? 'all' : key)}
+            onClick={() => onFiltersChange({ dateRange: dateRange === key ? 'all' : key })}
             className={cn(
               'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
-              dateFilter === key
+              dateRange === key
                 ? 'bg-brand-500 text-white shadow-sm'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
             )}
@@ -356,7 +302,7 @@ function FilterToolbar({
       {/* CRITICAL toggle — independent */}
       {criticalCount > 0 && (
         <button
-          onClick={onToggleCritical}
+          onClick={() => onFiltersChange({ showCritical: !showCritical })}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
             showCritical
@@ -372,7 +318,7 @@ function FilterToolbar({
       {/* HIGH toggle — independent */}
       {highCount > 0 && (
         <button
-          onClick={onToggleHigh}
+          onClick={() => onFiltersChange({ showHigh: !showHigh })}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
             showHigh
@@ -415,32 +361,33 @@ function FilterToolbar({
 // ---------------------------------------------------------------------------
 
 interface AppointmentTableProps {
-  appointments: AdminAppointment[];
-  selected:     Set<string>;
-  actingIds:    Set<string>;
-  actingAction: string;
-  bulkLoading:  boolean;
-  filterTabs:   { key: string; label: string; count: number }[];
-  activeFilter: string;
+  appointments:  AdminAppointment[];
+  selected:      Set<string>;
+  actingIds:     Set<string>;
+  actingAction:  string;
+  bulkLoading:   boolean;
+  filterTabs:    { key: string; label: string; count: number }[];
+  activeFilter:  string;
+  localFilters:  LocalFilters;
+  pagination:    Pagination;
   onFilterChange:    (f: string) => void;
   onToggleSelect:    (id: string) => void;
   onToggleSelectAll: (ids: string[]) => void;
   onAction:          (id: string, action: 'approve' | 'reject' | 'cancel' | 'complete') => void;
   onDrawer:          (apt: AdminAppointment) => void;
+  onSearchChange:    (v: string) => void;
+  onFiltersChange:   (patch: Partial<LocalFilters>) => void;
+  onPageChange:      (page: number) => void;
   onResetView?:      () => void;
 }
 
 export function AppointmentTable({
   appointments, selected, actingIds, actingAction, bulkLoading,
-  filterTabs, activeFilter, onFilterChange,
-  onToggleSelect, onToggleSelectAll, onAction, onDrawer, onResetView,
+  filterTabs, activeFilter, localFilters, pagination,
+  onFilterChange, onToggleSelect, onToggleSelectAll, onAction, onDrawer,
+  onSearchChange, onFiltersChange, onPageChange, onResetView,
 }: AppointmentTableProps) {
-  const [search, setSearch]             = useState('');
-  const [dateFilter, setDateFilter]     = useState<DateFilter>('all');
-  const [showCritical, setShowCritical] = useState(false);
-  const [showHigh, setShowHigh]         = useState(false);
-
-  const displayed     = applyLocalFilters(appointments, search, dateFilter, showCritical, showHigh);
+  const displayed     = appointments;
   const criticalCount = appointments.filter((a) => a.triage?.urgency === 'CRITICAL').length;
   const highCount     = appointments.filter((a) => a.triage?.urgency === 'HIGH').length;
   const isBusy        = actingIds.size > 0 || bulkLoading;
@@ -448,11 +395,7 @@ export function AppointmentTable({
   const someSelected  = displayed.some((a) => selected.has(a._id));
 
   function clearLocalFilters() {
-    setSearch('');
-    setDateFilter('all');
-    setShowCritical(false);
-    setShowHigh(false);
-    onFilterChange('all');
+    onResetView?.();
   }
 
   // ── Empty state (no appointments for this status filter) ─────────────────
@@ -485,16 +428,11 @@ export function AppointmentTable({
       <FilterTabs tabs={filterTabs} active={activeFilter} onChange={onFilterChange} />
 
       <FilterToolbar
-        search={search}
-        dateFilter={dateFilter}
-        showCritical={showCritical}
-        showHigh={showHigh}
+        filters={localFilters}
         criticalCount={criticalCount}
         highCount={highCount}
-        onSearchChange={setSearch}
-        onDateFilter={setDateFilter}
-        onToggleCritical={() => setShowCritical((v) => !v)}
-        onToggleHigh={() => setShowHigh((v) => !v)}
+        onSearchChange={onSearchChange}
+        onFiltersChange={onFiltersChange}
         onClearAll={clearLocalFilters}
         onResetView={onResetView}
       />
@@ -628,12 +566,33 @@ export function AppointmentTable({
         </table>
       </div>
 
-      <div className="px-5 py-2.5 border-t border-slate-100 dark:border-slate-700/40 flex items-center justify-between">
+      <div className="px-5 py-2.5 border-t border-slate-100 dark:border-slate-700/40 flex items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
-          {displayed.length !== appointments.length
-            ? `${displayed.length} / ${appointments.length} randevu gösteriliyor`
-            : `${appointments.length} randevu`}
+          {pagination.total > 0
+            ? `${pagination.total} randevudan ${displayed.length} gösteriliyor`
+            : `${displayed.length} randevu`}
         </p>
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onPageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+              className="p-1 rounded-md text-slate-500 hover:text-brand-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-medium text-slate-500 min-w-[3rem] text-center">
+              {pagination.page} / {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages}
+              className="p-1 rounded-md text-slate-500 hover:text-brand-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <p className="text-xs text-slate-400">Her 30s otomatik yenilenir</p>
       </div>
     </div>

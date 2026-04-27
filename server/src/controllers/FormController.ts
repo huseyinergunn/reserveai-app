@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { DateTime } from 'luxon';
 import type { AiService } from '../services/ai/AiService';
 import type { MailService } from '../services/mail/MailService';
 import type { WebhookService } from '../services/WebhookService';
@@ -108,10 +109,12 @@ export class FormController {
       status: { $in: ['pending', 'approved'] },
     });
     if (conflict) {
+      const nextAvailable = await this.findNextAvailableSlot(dateResult.iso!);
       res.status(409).json({
         errors: {
           dateTime: '🔴 Bu saat zaten rezerve edilmiş. Lütfen başka bir tarih veya saat seçin.',
         },
+        nextAvailable,
       });
       return;
     }
@@ -248,75 +251,103 @@ export class FormController {
       bookingReference,
     })
       .then(async (doc) => {
-        const docId      = (doc._id as { toString(): string }).toString();
-        const approveUrl = `${appBaseUrl}/api/approval/a/${docId}`;
-        const rejectUrl  = `${appBaseUrl}/api/approval/r/${docId}`;
+        try {
+          const docId      = (doc._id as { toString(): string }).toString();
+          const approveUrl = `${appBaseUrl}/api/approval/a/${docId}`;
+          const rejectUrl  = `${appBaseUrl}/api/approval/r/${docId}`;
 
-        // ── Phase 2a: Google Sheets — direct write (no n8n dependency) ─────────
-        const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
-        const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
-          day: 'numeric', month: 'long', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
-        }).format(new Date(submission.dateTime));
+          // ── Phase 2a: Google Sheets — direct write (no n8n dependency) ─────────
+          const timezone = process.env.TIMEZONE ?? 'Europe/Istanbul';
+          const dateTimeDisplay = new Intl.DateTimeFormat('tr-TR', {
+            day: 'numeric', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+          }).format(new Date(submission.dateTime));
 
-        this.deps.sheetsService?.appendRow({
-          id:              docId,
-          name:            submission.name,
-          email:           submission.email,
-          enquiry:         submission.enquiry,
-          status:          'pending',
-          dateTime:        submission.dateTime,
-          dateTimeDisplay,
-          approveUrl,
-          rejectUrl,
-        }).catch((err) => logger.warn('[FormController] Sheets append failed (non-fatal):', err));
+          this.deps.sheetsService?.appendRow({
+            id:              docId,
+            name:            submission.name,
+            email:           submission.email,
+            enquiry:         submission.enquiry,
+            status:          'pending',
+            dateTime:        submission.dateTime,
+            dateTimeDisplay,
+            approveUrl,
+            rejectUrl,
+          }).catch((err) => logger.warn('[FormController] Sheets append failed (non-fatal):', err));
 
-        // ── Phase 2b: n8n webhook — optional, for additional automation ───────
-        await this.deps.webhookService.notify({
-          id:         docId,
-          name:       submission.name,
-          email:      submission.email,
-          enquiry:    submission.enquiry,
-          dateTime:   submission.dateTime,
-          status:     'pending',
-          approveUrl,
-          rejectUrl,
-        });
+          // ── Phase 2b: n8n webhook — optional, for additional automation ───────
+          await this.deps.webhookService.notify({
+            id:         docId,
+            name:       submission.name,
+            email:      submission.email,
+            enquiry:    submission.enquiry,
+            dateTime:   submission.dateTime,
+            status:     'pending',
+            approveUrl,
+            rejectUrl,
+          });
 
-        // ── Phase 3: AI summarization + triage + admin approval email ────────
-        let enquirySummary = '';
-        let triage: TriageResult | undefined;
+          // ── Phase 3: AI summarization + triage + admin approval email ────────
+          let enquirySummary = '';
+          let triage: TriageResult | undefined;
 
-        await Promise.allSettled([
-          this.deps.aiService.summariseEnquiry(submission.enquiry)
-            .then((s) => { enquirySummary = s; })
-            .catch((err) => logger.error('[FormController] AI summarisation failed (non-fatal):', err)),
+          await Promise.allSettled([
+            this.deps.aiService.summariseEnquiry(submission.enquiry)
+              .then((s) => { enquirySummary = s; })
+              .catch((err) => logger.error('[FormController] AI summarisation failed (non-fatal):', err)),
 
-          this.deps.aiService.triageEnquiry(submission.enquiry)
-            .then((t) => { triage = t; })
-            .catch((err) => logger.error('[FormController] Triage failed (non-fatal):', err)),
-        ]);
+            this.deps.aiService.triageEnquiry(submission.enquiry)
+              .then((t) => { triage = t; })
+              .catch((err) => logger.error('[FormController] Triage failed (non-fatal):', err)),
+          ]);
 
-        doc.enquirySummary = enquirySummary;
-        if (triage) doc.triage = triage;
-        await doc.save();
+          doc.enquirySummary = enquirySummary;
+          if (triage) doc.triage = triage;
+          await doc.save();
 
-        const payload: ApprovalPayload = {
-          submissionId,
-          name:          submission.name,
-          email:         submission.email,
-          enquiry:       submission.enquiry,
-          enquirySummary,
-          dateTime:      submission.dateTime,
-          submittedAt:   submission.submittedAt,
-          approvalToken,
-          bookingReference,
-          triage,
-        };
+          const payload: ApprovalPayload = {
+            submissionId,
+            name:          submission.name,
+            email:         submission.email,
+            enquiry:       submission.enquiry,
+            enquirySummary,
+            dateTime:      submission.dateTime,
+            submittedAt:   submission.submittedAt,
+            approvalToken,
+            bookingReference,
+            triage,
+          };
 
-        await this.deps.mailService.sendApprovalRequest(payload);
-        logger.info(`[FormController] Approval workflow done: ${submissionId} (ref=${bookingReference})`);
+          await this.deps.mailService.sendApprovalRequest(payload);
+          logger.info(`[FormController] Approval workflow done: ${submissionId} (ref=${bookingReference})`);
+        } catch (err) {
+          logger.error('[FormController] Approval workflow fatal error:', err);
+          const msg = err instanceof Error ? err.message : String(err);
+          await doc.updateOne({ $set: { workflowError: msg } }).catch(() => undefined);
+        }
       })
-      .catch((err) => logger.error('[FormController] Approval workflow error:', err));
+      .catch((err) => logger.error('[FormController] Failed to create appointment doc:', err));
+  }
+
+  private async findNextAvailableSlot(afterIso: string): Promise<string | null> {
+    const tz    = process.env.TIMEZONE ?? 'Europe/Istanbul';
+    const dates = this.deps.dateValidator.getAvailableDates();
+    const times = this.deps.dateValidator.getAvailableTimes();
+
+    const booked = await AppointmentModel.find(
+      { status: { $in: ['pending', 'approved'] } },
+      { dateTime: 1, _id: 0 },
+    ).lean();
+    const bookedSet = new Set((booked as { dateTime: string }[]).map((b) => b.dateTime));
+
+    for (const date of dates) {
+      for (const time of times) {
+        const dt = DateTime.fromFormat(`${date} ${time}`, 'yyyy-MM-dd HH:mm', { zone: tz });
+        if (!dt.isValid) continue;
+        const iso = dt.toUTC().toISO()!;
+        if (iso > afterIso && !bookedSet.has(iso)) return iso;
+      }
+    }
+    return null;
   }
 }

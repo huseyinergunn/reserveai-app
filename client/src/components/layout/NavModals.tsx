@@ -105,7 +105,7 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[1002] flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -145,20 +145,6 @@ function ModalShell({ title, subtitle, onClose, size = 'lg', children }: ModalSh
           {children}
         </div>
 
-        {/* Mobile-only sticky footer close button */}
-        <div className="flex-shrink-0 lg:hidden px-4 py-3 border-t border-slate-100 dark:border-slate-700/40 modal-header">
-          <button
-            onClick={onClose}
-            className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-xl
-                       text-sm font-semibold text-slate-700 dark:text-slate-200
-                       bg-slate-100/80 dark:bg-slate-700/60
-                       border border-slate-200 dark:border-slate-600/50
-                       active:scale-[0.98] transition-transform"
-          >
-            <X className="w-4 h-4" />
-            Kapat
-          </button>
-        </div>
       </div>
     </div>
   );

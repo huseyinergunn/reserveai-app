@@ -15,8 +15,8 @@ import type {
 const BASE_URL   = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 const ADMIN_BASE = `${BASE_URL}/api/admin`;
 
-/** SessionStorage key for the admin JWT */
-export const ADMIN_TOKEN_KEY = 'admin_jwt';
+/** SessionStorage flag — set to '1' when admin is logged in. The actual JWT travels as an httpOnly cookie. */
+export const ADMIN_SESSION_KEY = 'admin_session';
 
 const http = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -128,17 +128,32 @@ export interface AdminStats {
   pending:   number;
   rejected:  number;
   cancelled: number;
+  completed: number;
+}
+
+export interface GetAppointmentsParams {
+  archiveMode?: 'active' | 'archive';
+  status?:      string;
+  urgency?:     string;
+  dateRange?:   string;
+  search?:      string;
+  page?:        number;
+  limit?:       number;
+}
+
+export interface GetAppointmentsResult {
+  appointments: AdminAppointment[];
+  total:        number;
+  page:         number;
+  totalPages:   number;
 }
 
 function adminHttp() {
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? '';
   const instance = axios.create({
-    baseURL:  ADMIN_BASE,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    timeout: 15_000,
+    baseURL:         ADMIN_BASE,
+    headers:         { 'Content-Type': 'application/json' },
+    withCredentials: true,
+    timeout:         15_000,
   });
   instance.interceptors.response.use(
     (res) => res,
@@ -146,7 +161,7 @@ function adminHttp() {
       const data   = err.response?.data;
       const status = err.response?.status as number | undefined;
       if (status === 401 || status === 403) {
-        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
         return Promise.reject({ error: data?.error ?? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.' });
       }
       return Promise.reject(
@@ -160,14 +175,26 @@ function adminHttp() {
 }
 
 export const adminApi = {
-  login(password: string): Promise<{ token: string }> {
+  login(password: string): Promise<{ success: boolean }> {
     return axios
-      .post<{ token: string }>(`${ADMIN_BASE}/login`, { password })
-      .then((r) => r.data);
+      .post<{ success: boolean }>(`${ADMIN_BASE}/login`, { password }, { withCredentials: true })
+      .then((r) => {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+        return r.data;
+      });
   },
 
-  getAppointments(): Promise<{ appointments: AdminAppointment[] }> {
-    return adminHttp().get<{ appointments: AdminAppointment[] }>('/appointments').then((r) => r.data);
+  logout(): Promise<{ success: boolean }> {
+    return axios
+      .post<{ success: boolean }>(`${ADMIN_BASE}/logout`, {}, { withCredentials: true })
+      .then((r) => {
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        return r.data;
+      });
+  },
+
+  getAppointments(params?: GetAppointmentsParams): Promise<GetAppointmentsResult> {
+    return adminHttp().get<GetAppointmentsResult>('/appointments', { params }).then((r) => r.data);
   },
 
   getStats(): Promise<AdminStats> {

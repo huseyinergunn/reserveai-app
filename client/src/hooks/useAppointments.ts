@@ -1,10 +1,10 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
-import { adminApi, ADMIN_TOKEN_KEY } from '../services/api';
+import { adminApi, ADMIN_SESSION_KEY } from '../services/api';
 import { adminReducer, initialAdminState } from '../store/adminReducer';
-import type { AdminState, FilterStatus, ViewMode, ArchiveMode } from '../store/adminReducer';
+import type { AdminState, FilterStatus, ViewMode, ArchiveMode, LocalFilters } from '../store/adminReducer';
 
 const POLL_MS     = 30_000;
-const STORAGE_KEY = ADMIN_TOKEN_KEY;
+const STORAGE_KEY = ADMIN_SESSION_KEY;
 
 // ---------------------------------------------------------------------------
 // Derived data helpers (pure — no side effects)
@@ -47,17 +47,43 @@ export function useAppointments() {
   const [state, dispatch] = useReducer(adminReducer, initialAdminState);
   const prevPendingRef    = useRef<number | null>(null);
   const pollRef           = useRef<ReturnType<typeof setInterval> | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef       = useRef(false);
 
   const isAuthenticated = !!sessionStorage.getItem(STORAGE_KEY);
 
+  // ── Build filter params for the API ─────────────────────────────────────
+
+  function buildParams(overridePage?: number) {
+    const { localFilters, archiveMode, filter, pagination } = state;
+    const urgency = localFilters.showCritical && localFilters.showHigh
+      ? 'CRITICAL,HIGH'
+      : localFilters.showCritical
+        ? 'CRITICAL'
+        : localFilters.showHigh
+          ? 'HIGH'
+          : undefined;
+    return {
+      archiveMode,
+      status:    filter !== 'all' ? filter : undefined,
+      urgency,
+      dateRange: localFilters.dateRange !== 'all' ? localFilters.dateRange : undefined,
+      search:    localFilters.search || undefined,
+      page:      overridePage ?? pagination.page,
+      limit:     50,
+    };
+  }
+
   // ── Data loading ────────────────────────────────────────────────────────
 
-  const loadData = useCallback(async (silent = false) => {
+  const loadData = useCallback(async (silent = false, overridePage?: number) => {
     if (!sessionStorage.getItem(STORAGE_KEY)) return;
+    if (isPausedRef.current && silent) return;
     if (!silent) dispatch({ type: 'LOAD_START' });
     try {
+      const params = buildParams(overridePage);
       const [aptsRes, statsData] = await Promise.all([
-        adminApi.getAppointments(),
+        adminApi.getAppointments(params),
         adminApi.getStats(),
       ]);
       dispatch({
@@ -65,6 +91,9 @@ export function useAppointments() {
         appointments: aptsRes?.appointments ?? [],
         stats:        statsData,
         prevPending:  prevPendingRef.current,
+        total:        aptsRes?.total      ?? 0,
+        page:         aptsRes?.page       ?? 1,
+        totalPages:   aptsRes?.totalPages ?? 1,
       });
       prevPendingRef.current = statsData?.pending ?? 0;
     } catch (err: unknown) {
@@ -77,7 +106,10 @@ export function useAppointments() {
         dispatch({ type: 'LOAD_ERROR', error: msg });
       }
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.archiveMode, state.filter, state.localFilters, state.pagination.page]);
+
+  // ── Initial load + polling ───────────────────────────────────────────────
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -89,19 +121,36 @@ export function useAppointments() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isAuthenticated, loadData]);
 
+  // ── Page Visibility API — pause polling when tab is hidden ──────────────
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        isPausedRef.current = true;
+      } else {
+        isPausedRef.current = false;
+        loadData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [loadData]);
+
   // ── Reload helper (after mutation) ──────────────────────────────────────
 
   const reloadSilent = useCallback(async (): Promise<{ appointments: typeof state.appointments; stats: NonNullable<typeof state.stats> } | null> => {
     try {
+      const params = buildParams();
       const [aptsRes, statsData] = await Promise.all([
-        adminApi.getAppointments(),
+        adminApi.getAppointments(params),
         adminApi.getStats(),
       ]);
       return { appointments: aptsRes?.appointments ?? [], stats: statsData };
     } catch {
       return null;
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.archiveMode, state.filter, state.localFilters, state.pagination.page]);
 
   // ── Single action ────────────────────────────────────────────────────────
 
@@ -165,6 +214,23 @@ export function useAppointments() {
   const toggleSelectAll = (filteredIds: string[]) =>
     dispatch({ type: 'TOGGLE_SELECT_ALL', ids: filteredIds });
 
+  const setPage = (page: number) => dispatch({ type: 'SET_PAGE', page });
+
+  const resetLocalFilters = () => {
+    dispatch({ type: 'RESET_LOCAL_FILTERS' });
+    dispatch({ type: 'SET_ARCHIVE_MODE', archiveMode: 'active' });
+    dispatch({ type: 'SET_FILTER',       filter: 'all' });
+  };
+
+  const setLocalFilters = (patch: Partial<LocalFilters>) =>
+    dispatch({ type: 'SET_LOCAL_FILTERS', patch });
+
+  const setSearch = (search: string) => {
+    dispatch({ type: 'SET_LOCAL_FILTERS', patch: { search } });
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => loadData(true, 1), 400);
+  };
+
   const derived = deriveFiltered(state);
 
   return {
@@ -185,6 +251,10 @@ export function useAppointments() {
     clearSelected,
     clearNewCount,
     clearActionError,
+    setPage,
+    setLocalFilters,
+    setSearch,
+    resetLocalFilters,
   };
 }
 

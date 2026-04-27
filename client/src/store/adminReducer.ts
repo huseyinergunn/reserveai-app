@@ -7,6 +7,20 @@ import type { AdminAppointment, AdminStats } from '../services/api';
 export type ViewMode    = 'list' | 'calendar';
 export type ArchiveMode = 'active' | 'archive';
 export type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
+export type DateFilter   = 'all' | 'today' | 'tomorrow' | 'week';
+
+export interface LocalFilters {
+  search:       string;
+  dateRange:    DateFilter;
+  showCritical: boolean;
+  showHigh:     boolean;
+}
+
+export interface Pagination {
+  page:       number;
+  total:      number;
+  totalPages: number;
+}
 
 export interface AdminState {
   appointments:  AdminAppointment[];
@@ -28,6 +42,8 @@ export interface AdminState {
   bulkLoading:   boolean;
   selected:      Set<string>;
   newCount:      number;
+  localFilters:  LocalFilters;
+  pagination:    Pagination;
 }
 
 export const initialAdminState: AdminState = {
@@ -45,6 +61,8 @@ export const initialAdminState: AdminState = {
   bulkLoading:   false,
   selected:      new Set(),
   newCount:      0,
+  localFilters:  { search: '', dateRange: 'all', showCritical: false, showHigh: false },
+  pagination:    { page: 1, total: 0, totalPages: 1 },
 };
 
 // ---------------------------------------------------------------------------
@@ -53,7 +71,7 @@ export const initialAdminState: AdminState = {
 
 export type AdminAction =
   | { type: 'LOAD_START' }
-  | { type: 'LOAD_SUCCESS'; appointments: AdminAppointment[]; stats: AdminStats; prevPending: number | null }
+  | { type: 'LOAD_SUCCESS'; appointments: AdminAppointment[]; stats: AdminStats; prevPending: number | null; total: number; page: number; totalPages: number }
   | { type: 'LOAD_ERROR'; error: string }
   | { type: 'ACTION_START'; ids: string[]; action: string }
   | { type: 'ACTION_SUCCESS'; appointments: AdminAppointment[]; stats: AdminStats; prevPending: number | null }
@@ -70,7 +88,10 @@ export type AdminAction =
   | { type: 'TOGGLE_SELECT_ALL'; ids: string[] }
   | { type: 'CLEAR_SELECTED' }
   | { type: 'CLEAR_NEW_COUNT' }
-  | { type: 'SESSION_EXPIRED' };
+  | { type: 'SESSION_EXPIRED' }
+  | { type: 'SET_LOCAL_FILTERS'; patch: Partial<LocalFilters> }
+  | { type: 'RESET_LOCAL_FILTERS' }
+  | { type: 'SET_PAGE'; page: number };
 
 // ---------------------------------------------------------------------------
 // Reducer
@@ -93,6 +114,7 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
         appointments: action.appointments,
         stats:        action.stats,
         newCount,
+        pagination:   { page: action.page, total: action.total, totalPages: action.totalPages },
       };
     }
 
@@ -177,6 +199,25 @@ export function adminReducer(state: AdminState, action: AdminAction): AdminState
 
     case 'SESSION_EXPIRED':
       return { ...initialAdminState };
+
+    case 'SET_LOCAL_FILTERS':
+      return {
+        ...state,
+        localFilters: { ...state.localFilters, ...action.patch },
+        pagination:   { ...state.pagination, page: 1 },
+        selected:     new Set(),
+      };
+
+    case 'RESET_LOCAL_FILTERS':
+      return {
+        ...state,
+        localFilters: { search: '', dateRange: 'all', showCritical: false, showHigh: false },
+        pagination:   { ...state.pagination, page: 1 },
+        selected:     new Set(),
+      };
+
+    case 'SET_PAGE':
+      return { ...state, pagination: { ...state.pagination, page: action.page } };
 
     default:
       return state;

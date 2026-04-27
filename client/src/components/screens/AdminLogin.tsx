@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Lock, AlertTriangle } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { Button } from '../ui/Button';
-import { adminApi, ADMIN_TOKEN_KEY } from '../../services/api';
+import { adminApi } from '../../services/api';
 
 export function AdminLogin() {
   const [password, setPassword] = useState('');
@@ -17,9 +17,7 @@ export function AdminLogin() {
     setLoading(true);
     setError('');
     try {
-      // Server validates password and returns a JWT — we never store the plain password
-      const { token } = await adminApi.login(trimmed);
-      sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+      await adminApi.login(trimmed);
       window.location.href = '/admin/dashboard';
     } catch (err: unknown) {
       const e = err as { error?: string };

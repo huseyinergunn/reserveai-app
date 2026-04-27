@@ -12,7 +12,7 @@ import { BulkActionBar } from '../admin/BulkActionBar';
 import { AppointmentTable, StatusBadge, UrgencyBadge, URGENCY_CONFIG } from '../admin/AppointmentTable';
 import { useAppointments } from '../../hooks/useAppointments';
 import { cn } from '../../lib/cn';
-import { ADMIN_TOKEN_KEY, type AdminAppointment } from '../../services/api';
+import { adminApi, type AdminAppointment } from '../../services/api';
 import { formatDisplayDateTime } from '@shared/dateUtils';
 import { TIMEZONE } from '@shared/constants';
 
@@ -259,12 +259,14 @@ export function AdminDashboard() {
     viewMode, archiveMode, filter,
     calendarDay, selected, bulkLoading,
     actingIds, actingAction, newCount,
+    localFilters, pagination,
     filtered, modeFiltered, filterTabs,
     loadData,
     handleAction, handleBulkAction,
     setViewMode, setArchiveMode, setFilter,
     setCalendarDay, toggleSelect, toggleSelectAll,
     clearSelected, clearNewCount, clearActionError,
+    setPage, setLocalFilters, setSearch, resetLocalFilters,
   } = useAppointments();
 
   const [drawerApt, setDrawerApt] = useState<AdminAppointment | null>(null);
@@ -311,7 +313,7 @@ export function AdminDashboard() {
               <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
             </button>
             <button
-              onClick={() => { sessionStorage.removeItem(ADMIN_TOKEN_KEY); window.location.href = '/admin/login'; }}
+              onClick={() => adminApi.logout().then(() => { window.location.href = '/admin/login'; })}
               title="Çıkış"
               className="p-2 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
             >
@@ -412,15 +414,17 @@ export function AdminDashboard() {
             bulkLoading={bulkLoading}
             filterTabs={filterTabs}
             activeFilter={filter}
+            localFilters={localFilters}
+            pagination={pagination}
             onFilterChange={(f) => setFilter(f as typeof filter)}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             onAction={handleAction}
             onDrawer={setDrawerApt}
-            onResetView={() => {
-              setArchiveMode('active');
-              setFilter('all');
-            }}
+            onSearchChange={setSearch}
+            onFiltersChange={setLocalFilters}
+            onPageChange={setPage}
+            onResetView={resetLocalFilters}
           />
         )}
       </main>
@@ -431,7 +435,7 @@ export function AdminDashboard() {
       </footer>
 
       {/* Chat widget — bottom-right (z-50 stays above bulk bar z-40) */}
-      <AIChat adminKey={sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? ''} />
+      <AIChat adminKey="" />
 
       {/* Bulk action bar — bottom-center (z-40) */}
       <BulkActionBar

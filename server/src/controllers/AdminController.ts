@@ -1,12 +1,14 @@
+import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import { DateTime } from 'luxon';
 import type { CalendarService } from '../services/calendar/CalendarService';
 import type { MailService } from '../services/mail/MailService';
 import type { SheetsService } from '../services/sheets/SheetsService';
 import type { AiService } from '../services/ai/AiService';
 import { AppointmentModel } from '../models/Appointment';
 import { logger } from '../utils/logger';
-import { signAdminToken } from '../middleware/auth.middleware';
+import { signAdminToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.middleware';
 
 interface Deps {
   aiService:                 AiService;
@@ -19,6 +21,17 @@ interface Deps {
   adminSecretKey:            string;
 }
 
+// ---------------------------------------------------------------------------
+// Timing-safe string comparison — immune to timing attacks regardless of length
+// ---------------------------------------------------------------------------
+
+function safeStringEqual(a: string, b: string): boolean {
+  const key     = crypto.randomBytes(32);
+  const hmacA   = crypto.createHmac('sha256', key).update(a).digest();
+  const hmacB   = crypto.createHmac('sha256', key).update(b).digest();
+  return crypto.timingSafeEqual(hmacA, hmacB);
+}
+
 export class AdminController {
   constructor(private readonly deps: Deps) {}
 
@@ -26,49 +39,133 @@ export class AdminController {
   // Auth — POST /api/admin/login
   // ---------------------------------------------------------------------------
 
-  /**
-   * Validates the admin password and returns a short-lived JWT.
-   * The client stores the JWT in sessionStorage and sends it as Bearer token.
-   * Plain-text password never leaves this handler — no `x-admin-key` pattern.
-   */
   login = (req: Request, res: Response): void => {
     const { password } = req.body as { password?: string };
     if (!password?.trim()) {
       res.status(400).json({ error: 'Şifre boş olamaz.' });
       return;
     }
-    if (password.trim() !== this.deps.adminSecretKey) {
-      // Generic message — don't reveal whether the key exists
+    if (!safeStringEqual(password.trim(), this.deps.adminSecretKey)) {
       res.status(401).json({ error: 'Şifre hatalı. Lütfen tekrar deneyin.' });
       return;
     }
     const token = signAdminToken();
+    setAuthCookie(res, token);
     logger.info('[AdminController] Admin login successful');
-    res.status(200).json({ token });
+    res.status(200).json({ success: true });
   };
 
   // ---------------------------------------------------------------------------
-  // Appointments
+  // Auth — POST /api/admin/logout
   // ---------------------------------------------------------------------------
 
-  getAppointments = async (_req: Request, res: Response): Promise<void> => {
-    const docs = await AppointmentModel.find({}).sort({ submittedAt: -1 }).lean();
-    res.status(200).json({ appointments: docs });
+  logout = (_req: Request, res: Response): void => {
+    clearAuthCookie(res);
+    res.status(200).json({ success: true });
   };
+
+  // ---------------------------------------------------------------------------
+  // Appointments — GET /api/admin/appointments
+  // ---------------------------------------------------------------------------
+
+  getAppointments = async (req: Request, res: Response): Promise<void> => {
+    const {
+      archiveMode = 'active',
+      status,
+      urgency,
+      dateRange,
+      search,
+      page  = '1',
+      limit = '50',
+    } = req.query as Record<string, string | undefined>;
+
+    const ACTIVE_STATUSES  = ['pending', 'approved'];
+    const ARCHIVE_STATUSES = ['rejected', 'cancelled', 'completed'];
+    const tz               = process.env.TIMEZONE ?? 'Europe/Istanbul';
+
+    // Build MongoDB query
+    const query: Record<string, unknown> = {};
+
+    // Archive mode — base status set
+    query.status = {
+      $in: archiveMode === 'active' ? ACTIVE_STATUSES : ARCHIVE_STATUSES,
+    };
+
+    // Narrow by specific status (tab filter)
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Urgency filter — supports comma-separated values, e.g. "CRITICAL,HIGH"
+    if (urgency && urgency !== 'all') {
+      const urgencyList = urgency.split(',').map((s) => s.trim()).filter(Boolean);
+      query['triage.urgency'] = urgencyList.length === 1
+        ? urgencyList[0]
+        : { $in: urgencyList };
+    }
+
+    // Date range filter
+    if (dateRange && dateRange !== 'all') {
+      const now = DateTime.now().setZone(tz);
+      let rangeStart: string | undefined;
+      let rangeEnd:   string | undefined;
+      if (dateRange === 'today') {
+        rangeStart = now.startOf('day').toISO()!;
+        rangeEnd   = now.endOf('day').toISO()!;
+      } else if (dateRange === 'tomorrow') {
+        rangeStart = now.plus({ days: 1 }).startOf('day').toISO()!;
+        rangeEnd   = now.plus({ days: 1 }).endOf('day').toISO()!;
+      } else if (dateRange === 'week') {
+        rangeStart = now.startOf('day').toISO()!;
+        rangeEnd   = now.endOf('week').toISO()!;
+      }
+      if (rangeStart && rangeEnd) {
+        query.dateTime = { $gte: rangeStart, $lte: rangeEnd };
+      }
+    }
+
+    // Text search on name or email
+    if (search?.trim()) {
+      const safe  = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(safe, 'i');
+      query.$or   = [{ name: regex }, { email: regex }];
+    }
+
+    const pageNum  = Math.max(1, parseInt(page  ?? '1',  10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit ?? '50', 10) || 50));
+    const skip     = (pageNum - 1) * limitNum;
+
+    const [docs, total] = await Promise.all([
+      AppointmentModel.find(query).sort({ submittedAt: -1 }).skip(skip).limit(limitNum).lean(),
+      AppointmentModel.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      appointments: docs,
+      total,
+      page:         pageNum,
+      totalPages:   Math.ceil(total / limitNum),
+    });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Stats — GET /api/admin/stats
+  // ---------------------------------------------------------------------------
 
   getStats = async (_req: Request, res: Response): Promise<void> => {
-    const [total, approved, pending, rejected, cancelled] = await Promise.all([
+    const [total, approved, pending, rejected, cancelled, completed] = await Promise.all([
       AppointmentModel.countDocuments(),
       AppointmentModel.countDocuments({ status: 'approved' }),
       AppointmentModel.countDocuments({ status: 'pending' }),
       AppointmentModel.countDocuments({ status: 'rejected' }),
       AppointmentModel.countDocuments({ status: 'cancelled' }),
+      AppointmentModel.countDocuments({ status: 'completed' }),
     ]);
-    res.status(200).json({ total, approved, pending, rejected, cancelled });
+    res.status(200).json({ total, approved, pending, rejected, cancelled, completed });
   };
 
   // ---------------------------------------------------------------------------
-  // AI analytics
+  // AI analytics — POST /api/admin/analyze
   // ---------------------------------------------------------------------------
 
   analyzeData = async (req: Request, res: Response): Promise<void> => {
@@ -235,7 +332,6 @@ export class AdminController {
     logger.info(`[AdminController] Cancelled ${doc.bookingReference}`);
     res.status(200).json({ status: 'cancelled' });
 
-    // Fire-and-forget cleanup
     (async () => {
       if (prevCalendarEventId) {
         try { await this.deps.calendarService.deleteEvent(prevCalendarEventId); }
@@ -261,6 +357,10 @@ export class AdminController {
     })().catch((err) => logger.error('[AdminController] Cancel cleanup error:', err));
   };
 
+  // ---------------------------------------------------------------------------
+  // Bulk action — POST /api/admin/appointments/bulk
+  // ---------------------------------------------------------------------------
+
   bulkAction = async (req: Request, res: Response): Promise<void> => {
     const { ids, action } = req.body as { ids?: unknown; action?: unknown };
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -270,54 +370,59 @@ export class AdminController {
       res.status(400).json({ error: 'action must be cancel, complete or delete.' }); return;
     }
 
-    // Hard delete: only archive statuses allowed
+    const validIds = (ids as string[]).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      res.status(400).json({ error: 'No valid IDs provided.' }); return;
+    }
+
+    // Hard delete — only archived statuses
     if (action === 'delete') {
       const ARCHIVE_STATUSES = ['rejected', 'cancelled', 'completed'];
-      const validIds = (ids as string[]).filter((id) => mongoose.Types.ObjectId.isValid(id));
       const docs = await AppointmentModel.find({
-        _id:    { $in: validIds },
-        status: { $in: ARCHIVE_STATUSES },
+        _id: { $in: validIds }, status: { $in: ARCHIVE_STATUSES },
       }).lean();
       const deletableIds = docs.map((d) => (d._id as { toString(): string }).toString());
       const skipped = validIds.length - deletableIds.length;
       if (deletableIds.length > 0) {
         await AppointmentModel.deleteMany({ _id: { $in: deletableIds } });
       }
-      logger.info(`[AdminController] bulk delete: ${deletableIds.length} deleted, ${skipped} skipped (wrong status)`);
+      logger.info(`[AdminController] bulk delete: ${deletableIds.length} deleted, ${skipped} skipped`);
       res.status(200).json({ processed: deletableIds.length, failed: skipped, results: [] });
       return;
     }
 
-    const results: { id: string; ok: boolean; message?: string }[] = [];
-    for (const id of ids as string[]) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        results.push({ id, ok: false, message: 'Invalid ID.' }); continue;
-      }
-      const doc = await AppointmentModel.findById(id);
-      if (!doc) { results.push({ id, ok: false, message: 'Not found.' }); continue; }
-      try {
-        if (action === 'cancel') {
-          if (doc.status === 'cancelled') { results.push({ id, ok: true }); continue; }
-          const prevEventId = doc.calendarEventId;
-          doc.status = 'cancelled';
-          await doc.save();
-          if (prevEventId) {
-            this.deps.calendarService.deleteEvent(prevEventId)
-              .catch((e) => logger.error('[AdminController] bulk cancel event delete failed:', e));
+    // Cancel / Complete — single updateMany instead of N individual saves
+    const newStatus     = action === 'cancel' ? 'cancelled' : 'completed';
+    const allowedFrom   = action === 'cancel'
+      ? ['pending', 'approved']
+      : ['pending', 'approved', 'cancelled'];
+
+    const result = await AppointmentModel.updateMany(
+      { _id: { $in: validIds }, status: { $in: allowedFrom } },
+      { $set: { status: newStatus } },
+    );
+
+    const processed = result.modifiedCount;
+    const skipped   = validIds.length - processed;
+    logger.info(`[AdminController] bulk ${action}: ${processed} updated, ${skipped} skipped`);
+
+    // Fire-and-forget: delete calendar events for bulk-cancelled approved appointments
+    if (action === 'cancel') {
+      AppointmentModel.find({ _id: { $in: validIds }, calendarEventId: { $ne: null } })
+        .lean()
+        .then((docs) => {
+          for (const doc of docs) {
+            const evtId = (doc as { calendarEventId?: string }).calendarEventId;
+            if (evtId) {
+              this.deps.calendarService.deleteEvent(evtId)
+                .catch((e) => logger.error('[AdminController] bulk cancel event delete failed:', e));
+            }
           }
-        } else {
-          doc.status = 'completed';
-          await doc.save();
-        }
-        results.push({ id, ok: true });
-      } catch (err) {
-        logger.error(`[AdminController] bulk ${action} failed for ${id}:`, err);
-        results.push({ id, ok: false, message: 'Internal error.' });
-      }
+        })
+        .catch((e) => logger.error('[AdminController] bulk cancel calendar lookup failed:', e));
     }
 
-    const failed = results.filter((r) => !r.ok).length;
-    res.status(200).json({ processed: results.length, failed, results });
+    res.status(200).json({ processed, failed: skipped, results: [] });
   };
 
   // ---------------------------------------------------------------------------

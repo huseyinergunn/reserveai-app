@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 
 import { logger } from './utils/logger';
@@ -149,6 +150,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // preflight — tüm route'lara OPTIONS izni
 app.use(express.json());           // JSON body parser — ROUTE'LARDAN ÖNCE
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(globalLimiter);
 
 const chatController = new ChatController({ aiService });

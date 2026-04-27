@@ -184,6 +184,11 @@ export function useAppointment() {
       dispatch({ type: 'APPOINTMENT_SUBMITTED', payload: summary });
       return {};
     } catch (err) {
+      const e = err as { error?: string; errors?: Record<string, string>; nextAvailable?: string | null };
+      if (e.errors && Object.keys(e.errors).length > 0) {
+        dispatch({ type: 'LOADING_END' });
+        return { fieldErrors: e.errors, nextAvailable: e.nextAvailable };
+      }
       return handleError(err, dispatch);
     }
   }

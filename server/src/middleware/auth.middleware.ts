@@ -8,7 +8,8 @@ export interface AdminTokenPayload {
   exp: number;
 }
 
-/** Reads JWT_SECRET from env — crashes loudly if missing so misconfiguration is obvious. */
+const COOKIE_NAME = 'admin_token';
+
 function getSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) {
@@ -18,25 +19,39 @@ function getSecret(): string {
   return s;
 }
 
-/**
- * Generates a signed JWT for the admin role.
- * Expiry: 8 hours — one full work day, must re-login next day.
- */
 export function signAdminToken(): string {
   return jwt.sign({ role: 'admin' }, getSecret(), { expiresIn: '8h' });
 }
 
 /**
- * Express middleware — rejects requests without a valid Bearer token.
- * Attach to any route that requires admin access.
+ * Sets the admin JWT as an httpOnly cookie — invisible to JavaScript,
+ * preventing XSS-based token theft.
+ */
+export function setAuthCookie(res: Response, token: string): void {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge:   8 * 60 * 60 * 1000, // 8 hours — matches JWT expiry
+    path:     '/',
+  });
+}
+
+/** Clears the auth cookie on logout or session expiry. */
+export function clearAuthCookie(res: Response): void {
+  res.clearCookie(COOKIE_NAME, { path: '/' });
+}
+
+/**
+ * Express middleware — reads JWT from httpOnly cookie.
+ * Rejects requests without a valid, unexpired admin token.
  */
 export function requireAdminAuth(req: Request, res: Response, next: NextFunction): void {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Yetkisiz: Bearer token gerekli.' });
+  const token = (req.cookies as Record<string, string | undefined>)?.[COOKIE_NAME];
+  if (!token) {
+    res.status(401).json({ error: 'Yetkisiz: Oturum açmanız gerekiyor.' });
     return;
   }
-  const token = header.slice(7);
   try {
     const payload = jwt.verify(token, getSecret()) as AdminTokenPayload;
     if (payload.role !== 'admin') {
@@ -46,10 +61,11 @@ export function requireAdminAuth(req: Request, res: Response, next: NextFunction
     next();
   } catch (err) {
     const isExpired = err instanceof jwt.TokenExpiredError;
+    clearAuthCookie(res);
     res.status(401).json({
       error: isExpired
         ? 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
-        : 'Geçersiz token. Lütfen tekrar giriş yapın.',
+        : 'Geçersiz oturum. Lütfen tekrar giriş yapın.',
     });
   }
 }
