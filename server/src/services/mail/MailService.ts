@@ -249,6 +249,46 @@ export class MailService {
     logger.info(`[MailService] Cancel link → ${params.email} (ref=${params.bookingReference})`);
   }
 
+  /** Sends a same-day reminder to the user at 09:00 via the daily cron. */
+  async sendReminder(params: {
+    name:             string;
+    email:            string;
+    dateTime:         string;
+    bookingReference: string;
+  }): Promise<void> {
+    const display = formatDisplayDateTime(params.dateTime);
+    await this.send({
+      to:      params.email,
+      subject: `⏰ Randevu Hatırlatması — ${escapeHtml(display)}`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+<table width="600" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+<tr><td style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 40px;text-align:center">
+  <h1 style="color:white;margin:0;font-size:24px;font-weight:700">⏰ Randevu Hatırlatması</h1>
+</td></tr>
+<tr><td style="padding:32px 40px">
+  <p style="color:#374151;font-size:16px;margin:0 0 20px">Merhaba <strong>${escapeHtml(params.name)}</strong>,</p>
+  <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px">
+    Bugün bir randevunuz bulunmaktadır. Sizi bekliyoruz!
+  </p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border-radius:10px;border:1px solid #bfdbfe;overflow:hidden;margin:0 0 24px">
+    <tr>
+      <td style="padding:12px 16px;font-weight:600;color:#1d4ed8;width:160px">📅 Tarih &amp; Saat</td>
+      <td style="padding:12px 16px;color:#1e293b;font-weight:500">${escapeHtml(display)}</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 16px;font-weight:600;color:#1d4ed8">🔖 Referans</td>
+      <td style="padding:12px 16px;color:#1e293b;font-family:monospace">${escapeHtml(params.bookingReference)}</td>
+    </tr>
+  </table>
+  <p style="color:#94a3b8;font-size:13px;margin:0">Bu bir otomatik hatırlatma e-postasıdır.</p>
+</td></tr>
+</table></td></tr></table></body></html>`,
+    });
+    logger.info(`[MailService] Reminder → ${params.email} (ref=${params.bookingReference})`);
+  }
+
   // ---------------------------------------------------------------------------
 
   private async send(opts: { to: string; subject: string; html: string }): Promise<void> {

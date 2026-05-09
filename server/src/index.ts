@@ -14,6 +14,7 @@ import { MailService } from './services/mail/MailService';
 import { CalendarService } from './services/calendar/CalendarService';
 import { SheetsService } from './services/sheets/SheetsService';
 import { WebhookService } from './services/WebhookService';
+import { ReminderService } from './services/ReminderService';
 
 import { DateValidator } from './validators/date.validator';
 
@@ -196,6 +197,7 @@ mongoose
   .connect(MONGODB_URI)
   .then(() => {
     logger.info(`[DB] Connected to MongoDB`);
+    new ReminderService(mailService).start();
     app.listen(PORT, () => {
       logger.info(`🚀 Server ready on http://localhost:${PORT}`);
       logger.info(`   AI provider : ${process.env.AI_PROVIDER ?? 'openai'}`);
