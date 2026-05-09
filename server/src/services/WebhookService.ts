@@ -31,11 +31,16 @@ export class WebhookService {
     logger.info(`[WebhookService] Notifying n8n → ${this.webhookUrl}`);
 
     try {
+      const controller = new AbortController();
+      const timeout    = setTimeout(() => controller.abort(), 5_000);
+
       const res = await fetch(this.webhookUrl, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
+        signal:  controller.signal,
       });
+      clearTimeout(timeout);
 
       logger.info(`[WebhookService] n8n responded → HTTP ${res.status}`);
     } catch (err) {
